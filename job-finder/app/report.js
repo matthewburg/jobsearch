@@ -529,7 +529,8 @@ async function openResume(jobId, tab = "resume") {
   const show = async t => {
     dlg.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("primary", b.dataset.t === t));
     const body = dlg.querySelector(".sheet-body");
-    if (t === "resume") body.innerHTML = `<iframe src="${docFile(d, "html")}" title="Resume draft"></iframe>`;
+    // the PDF, not the HTML: it shows the real page breaks an employer will see
+    if (t === "resume") body.innerHTML = `<iframe src="${docFile(d, "pdf")}#view=FitH" title="Resume draft"></iframe>`;
     else {
       const r = await getJSON(`/api/file?path=${encodeURIComponent(d.path + "/notes.md")}`);
       body.innerHTML = `<div class="md">${md(r.content || "_No notes yet._")}</div>`;
@@ -576,8 +577,7 @@ async function renderDocuments() {
       "Revise my resume draft for <company>: lead with platform work")}
     <div class="panel"><div class="panel-head"><h2>Base resume</h2><span class="small muted">Source of truth · style: ${esc(docs.style)}</span></div>
       <div class="doc"><div><div class="t">profile/resume.json</div><div class="s">Every tailored draft starts here. Decisions about wording and framing live in resume-notes.md.</div></div>
-      <div class="btns"><a class="btn primary" href="/files/${esc(docs.base.html)}" target="_blank" rel="noopener">View</a>
-        <a class="btn" href="/files/${esc(docs.base.pdf)}" target="_blank" rel="noopener">PDF</a>
+      <div class="btns"><a class="btn primary" href="/files/${esc(docs.base.pdf || docs.base.html)}" target="_blank" rel="noopener">View</a>
         <a class="btn" href="#profile/profile/resume-notes.md">Resume notes</a><a class="btn" href="#profile/profile/resume.json">Edit content</a></div></div></div>
     <div class="panel"><div class="panel-head"><h2>Tailored drafts</h2><span class="small muted">${resumes.length}</span></div>
       ${resumes.length ? resumes.map(row).join("") : `<div class="body muted small">None yet.</div>`}</div>
