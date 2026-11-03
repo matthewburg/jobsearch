@@ -1,0 +1,12 @@
+/* Classic: serif, centered name, small-caps headings over thin rules. Traditional and calm. */
+body { font-family: Georgia, "Times New Roman", serif; font-size: 10pt; }
+.head { text-align: center; border-bottom: 1px solid #1d1d1f; padding-bottom: 7pt; }
+.name { font-weight: normal; font-variant: small-caps; font-size: 24pt; }
+.label { font-style: italic; color: #444; }
+.contact { color: #444; }
+h2 { font-weight: normal; font-variant: small-caps; font-size: 12.5pt;
+     border-bottom: .75px solid #999; padding-bottom: 1pt; }
+.company { font-weight: bold; font-size: 10.5pt; }
+.title { font-style: italic; font-weight: normal; }
+.where, .dates { color: #444; font-style: italic; }
+.skills strong, .certs strong, .pname { font-weight: bold; }

@@ -1,0 +1,13 @@
+/* Modern: clean sans, left-aligned, one teal accent, airy section labels. */
+body { font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size: 10.5pt; }
+.name { color: #17595f; font-weight: 700; font-size: 26pt; }
+.label { color: #3b3b3b; font-size: 12pt; }
+.contact { color: #555; }
+.sep { color: #9bb9bc; }
+h2 { text-transform: uppercase; font-size: 10pt; color: #17595f;
+     border-bottom: 1.25px solid #17595f; padding-bottom: 2pt; }
+.company { font-weight: 700; }
+.title { font-weight: 700; color: #17595f; }
+.where, .dates { color: #666; }
+li::marker { color: #17595f; }
+.skills strong, .certs strong, .pname { color: #17595f; }

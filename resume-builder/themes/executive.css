@@ -1,0 +1,14 @@
+/* Executive: serif headings over a sans body, navy accent, a strong top rule. Dense and senior. */
+body { font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size: 10.5pt; }
+.head { border-top: 5pt solid #22375a; padding-top: 8pt; display: grid; grid-template-columns: 1fr auto; column-gap: 16pt; align-items: end; }
+.name { font-family: Cambria, Georgia, serif; color: #22375a; font-size: 25pt; font-weight: 700; }
+.label { grid-column: 1; font-family: Cambria, Georgia, serif; color: #444; font-size: 12pt; }
+.contact { grid-column: 2; grid-row: 1 / span 2; text-align: right; color: #444; line-height: 1.5; }
+.contact .sep { display: block; height: 0; overflow: hidden; }
+h2 { font-family: Cambria, Georgia, serif; color: #22375a; font-size: 12pt; font-weight: 700;
+     border-left: 3.5pt solid #22375a; padding-left: 6pt; }
+.company { font-family: Cambria, Georgia, serif; font-weight: 700; color: #22375a; }
+.title { font-weight: 700; }
+.where, .dates { color: #555; }
+.summary p { font-size: 10.5pt; }
+.skills strong, .certs strong, .pname { color: #22375a; }

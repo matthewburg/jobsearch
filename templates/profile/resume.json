@@ -1,0 +1,55 @@
+{
+  "_about": "Your base resume content (JSON Resume schema, jsonresume.org). Claude fills this in from your experience bank; resume-builder renders it in any style. This sample person is made up: replace everything.",
+  "meta": {"version": "base", "open": ["Questions Claude couldn't answer from your files go here"]},
+  "basics": {
+    "name": "Jordan Rivera",
+    "label": "Senior Product Manager",
+    "email": "jordan@example.com",
+    "phone": "(555) 010-0199",
+    "url": "https://example.com",
+    "location": {"city": "Denver", "region": "CO"},
+    "profiles": [{"network": "LinkedIn", "url": "https://linkedin.com/in/example"}],
+    "summary": "Product manager with 9 years in B2B software. Turns messy workflows into simple tools, with a record of growing retention through better onboarding and data products."
+  },
+  "work": [
+    {
+      "name": "Example Software Co.",
+      "location": "Denver, CO",
+      "position": "Senior Product Manager",
+      "startDate": "2022-03",
+      "endDate": "",
+      "summary": "Owns the onboarding and analytics products for a 40,000-customer SaaS platform.",
+      "highlights": [
+        "Rebuilt self-serve onboarding, lifting 90-day retention from 71% to 80%.",
+        "Launched usage analytics now used weekly by 60% of admins."
+      ]
+    },
+    {
+      "name": "Example Software Co.",
+      "location": "Denver, CO",
+      "position": "Product Manager",
+      "startDate": "2019-06",
+      "endDate": "2022-03",
+      "highlights": ["Shipped the billing redesign that cut support tickets by a third."]
+    },
+    {
+      "name": "Sample Logistics",
+      "location": "Boulder, CO",
+      "position": "Business Analyst",
+      "startDate": "2016-01",
+      "endDate": "2019-06",
+      "highlights": ["Automated weekly reporting, saving the ops team ~10 hours a week."]
+    }
+  ],
+  "projects": [
+    {"name": "Trail conditions app", "description": "Side project: a small web app that crowdsources trail conditions.", "keywords": ["React", "Supabase"]}
+  ],
+  "skills": [
+    {"name": "Product", "keywords": ["Discovery", "Roadmapping", "Experimentation", "SQL"]},
+    {"name": "Tools", "keywords": ["Jira", "Amplitude", "Figma"]}
+  ],
+  "certificates": [],
+  "education": [
+    {"institution": "University of Colorado", "studyType": "B.S.", "area": "Business Information Systems", "endDate": "2015-05"}
+  ]
+}

@@ -1,0 +1,15 @@
+# Your data stays on your computer. None of this is ever committed.
+# (Leading slashes: only the top-level folders. templates/profile/ is shared.)
+/profile/
+/samples/
+/resumes/
+/cover-letters/
+/tracker/
+/job-finder/state/
+
+# Written by job-finder/install.py with this computer's paths
+/.mcp.json
+/.claude/
+
+__pycache__/
+*.pyc

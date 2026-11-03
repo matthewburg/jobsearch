@@ -1,0 +1,13 @@
+/* Builder: modern sans with monospace details (dates, tools) and a warm accent. Reads technical without gimmicks. */
+body { font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size: 10.5pt; }
+.name { font-weight: 700; font-size: 25pt; color: #1d1d1f; }
+.label { color: #b0491f; font-weight: 700; font-size: 11.5pt; }
+.contact, .where, .dates, .kw { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: 8.75pt; color: #555; }
+.sep { color: #c9a08e; }
+h2 { font-size: 11pt; font-weight: 700; display: flex; align-items: center; gap: 6pt; }
+h2::before { content: ""; width: 8pt; height: 8pt; background: #b0491f; border-radius: 1.5pt; flex: none; }
+h2::after { content: ""; flex: 1; border-bottom: 1px solid #ddd; }
+.company { font-weight: 700; }
+.title { font-weight: 700; color: #b0491f; }
+li::marker { color: #b0491f; }
+.skills strong, .certs strong, .pname { color: #1d1d1f; }

@@ -1,0 +1,15 @@
+{
+  "_help": "Numbers the job finder's code reads. Keys starting with _ are notes.",
+  "_pay": "Base salary in whole dollars, matching targets.md, e.g. floor 120000, target_low 130000, target_high 150000. Until these are set the report shows pay without colors.",
+  "pay": {
+    "floor": null,
+    "target_low": null,
+    "target_high": null
+  },
+  "_stale_days": "A listing this many days old or older is flagged as stale (a ghost-listing signal).",
+  "stale_days": 45,
+  "_test_mode": "Keeps LinkedIn to 6 requests a day. Set to false once a few days of runs look healthy.",
+  "test_mode": true,
+  "_private_terms": "Words that must never appear in a shared copy of the kit (your last name, employers, email). package.py refuses to build a copy containing them.",
+  "private_terms": []
+}
