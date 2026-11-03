@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -84,20 +85,30 @@ def _placeholders(path: Path) -> int | None:
     return path.read_text(encoding="utf-8").count("_(") if path.exists() else None
 
 
+_task_cache: tuple[float, dict | None] = (0.0, None)
+
+
 def collector_task() -> dict | None:
-    """The Windows collector task's state from schtasks, or None (not Windows / not registered)."""
+    """The Windows collector task's state from schtasks, or None (not Windows / not registered).
+    Cached for a minute: the app asks on every page load."""
+    global _task_cache
     if sys.platform != "win32":
         return None
+    if time.monotonic() - _task_cache[0] < 60:
+        return _task_cache[1]
     try:
+        # CREATE_NO_WINDOW: the app server runs windowless (pythonw), so a console child would flash a window
         out = subprocess.run(["schtasks", "/query", "/tn", COLLECTOR_TASK, "/fo", "LIST", "/v"],
-                             capture_output=True, text=True, timeout=10).stdout
+                             capture_output=True, text=True, timeout=10,
+                             creationflags=subprocess.CREATE_NO_WINDOW).stdout
     except (OSError, subprocess.TimeoutExpired):
         return None
     fields = dict(re.findall(r"^([A-Za-z ]+):\s+(.*?)\s*$", out, re.M))
-    if "Next Run Time" not in fields:
-        return None
-    return {"next_run": _parse_win_time(fields.get("Next Run Time")), "last_run": _parse_win_time(fields.get("Last Run Time")),
-            "status": fields.get("Status"), "last_result": fields.get("Last Result")}
+    task = None if "Next Run Time" not in fields else {
+        "next_run": _parse_win_time(fields.get("Next Run Time")), "last_run": _parse_win_time(fields.get("Last Run Time")),
+        "status": fields.get("Status"), "last_result": fields.get("Last Result")}
+    _task_cache = (time.monotonic(), task)
+    return task
 
 
 def _parse_win_time(s: str | None) -> str | None:

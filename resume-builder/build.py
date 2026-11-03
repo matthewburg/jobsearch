@@ -154,7 +154,8 @@ def to_pdf(html_path: Path, pdf_path: Path, browser: str) -> None:
     with tempfile.TemporaryDirectory() as profile:  # throwaway profile: never touches your real browser
         subprocess.run([browser, "--headless=new", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}",
                         "--no-pdf-header-footer", f"--print-to-pdf={pdf_path}", html_path.as_uri()],
-                       check=True, capture_output=True, timeout=90)
+                       check=True, capture_output=True, timeout=90,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))  # no window flash from a windowless app
 
 
 def gallery(out: Path, names: list[str], person: str) -> None:
