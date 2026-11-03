@@ -122,12 +122,11 @@ The first follows today's log live; the second shows today's totals, statuses, r
   - Every status change and note is kept in `events`: the work-search paper trail.
   - **`seen`:** every listing any search ever returned, saved or not, with first/last seen, days seen, and the triage decision. Search results come back marked new or already seen (matched by source id, or by company + title across sites), so each day's effort goes to new listings. That's what lets the net be wide.
   - **Wide net:** searches are broad and rotated, the title net is loose (`ats.title_matches`: any word, any case, plurals OK), and Claude does the precise matching when scoring. See [PLAYBOOK.md](PLAYBOOK.md#2-collect-a-wide-net-fetched-once).
-- **[app/server.py](app/server.py) + [app/report.html](app/report.html), `report.js`, `report.css`:** the local app at http://127.0.0.1:8765 (localhost only), in five sections:
-  - **Jobs** (the report, below), **Documents** (base resume plus tailored drafts, with a viewer and "what changed" notes), **Profile** (read and edit `profile/` Markdown and JSON), **Activity** (every listing seen, kept, filtered out with its reason, or rescued, plus run history), and **Setup** (steps from [store/setup_state.py](store/setup_state.py), schedules, and next runs).
-  - A status line on every page: the last review, drafts ready and queued, next collection, review, and drafts runs. Until the required setup steps are done, the job list is replaced by a pointer to Setup.
+- **[app/server.py](app/server.py) + [app/report.html](app/report.html), `report.js`, `report.css`:** the local app at http://127.0.0.1:8765 (localhost only), in six sections:
+  - **Home** (below), **Jobs** (the report), **Documents** (base resume plus tailored drafts, with a viewer and "what changed" notes), **Profile** (read and edit `profile/` Markdown and JSON), **Activity** (every listing seen, kept, filtered out with its reason, or rescued, plus run history), and **Setup** (steps from [store/setup_state.py](store/setup_state.py), schedules, and next runs).
+  - **Home** (the landing page): a greeting, job counts, the latest review, what runs next, drafts ready, a daily intake chart (kept / filtered out / waiting), the pipeline from listings to applications, sources, and totals of the work done. Until the required setup steps are done, the job list is replaced by a pointer to Setup.
   - File access stays inside the kit: `profile/` is editable (`.md` and `.json` only); rendered drafts are served read-only from `resumes/`.
-  - **Header:**
-    - stat strip: to review, strong fits, pay in target, applied
+  - **Jobs toolbar:**
     - views: New / Interested / Applied / Closed / Dismissed / All
     - search
     - sort: best fit, highest pay by midpoint, newest, company

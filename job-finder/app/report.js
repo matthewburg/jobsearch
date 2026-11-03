@@ -127,7 +127,7 @@ async function loadAll() {
 }
 async function refreshJobs() {
   const [o, j] = await Promise.all([getJSON("/api/overview"), getJSON("/api/jobs")]);
-  overview = o; jobs = j.jobs; docs = null;
+  overview = o; jobs = j.jobs; docs = null; dash = null;
   renderChrome();
   route();
 }
@@ -136,55 +136,144 @@ async function refreshJobs() {
 const schedule = id => (overview?.setup.schedules || []).find(s => s.id === id);
 
 function renderChrome() {
-  const live = jobs.filter(j => j.status === "new");
-  $("stats").innerHTML = overview.setup.ready ? `
-     <div class="stat"><b>${live.length}</b><span>to review</span></div>
-     <div class="stat"><b>${live.filter(j => (j.analysis?.score ?? 0) >= 70).length}</b><span>strong fits</span></div>
-     <div class="stat"><b>${jobs.filter(j => ["interested", "applying"].includes(j.status)).length}</b><span>interested</span></div>
-     <div class="stat"><b>${jobs.filter(j => ["applied", "interviewing", "offer"].includes(j.status)).length}</b><span>applied</span></div>` : "";
-  const sources = [...new Set(jobs.flatMap(j => j.sources.map(s => s.source.replace("ats:", ""))))];
+  const sources = [...new Set(jobs.flatMap(j => j.sources.filter(s => s.source !== "company").map(s => s.source.replace("ats:", ""))))];
   $("sub").textContent = jobs.length ? `${jobs.length} jobs tracked · ${sources.join(" · ")}` : "";
-
-  const st = overview.setup, todo = st.steps.filter(s => s.state !== "done").length;
+  const todo = overview.setup.steps.filter(s => s.state !== "done").length;
   $("nav-setup").hidden = !todo; $("nav-setup").textContent = todo;
   $("nav-docs").hidden = !overview.drafts.ready; $("nav-docs").textContent = overview.drafts.ready;
-
-  const parts = [];
-  if (!st.ready) {
-    parts.push(`<div class="notice warn"><span class="grow"><b>Setup isn't finished</b> · ${st.steps.length - todo} of ${st.steps.length} steps done.
-      Open Claude in this folder and say “Set this up for me.”</span><a class="pill warn" href="#setup">See setup</a></div>`);
-  } else {
-    const review = runs.runs.find(r => r.kind === "review"), collect = runs.runs.find(r => r.kind === "collect");
-    if (review) parts.push(`<div class="runs"><div><b>Review · ${when(review.started)}</b> — ${esc(review.summary || "")}</div>
-      <div class="meta">${collect ? `Last collection ${when(collect.started)} (${esc(collect.status)}): ${esc(collect.summary || "")}` : ""}${
-        runs.unreviewed ? ` · ${runs.unreviewed} listings waiting for the next review` : ""}</div></div>`);
-    const d = overview.drafts, drafts = schedule("drafts_schedule");
-    if (d.ready || d.pending) {
-      parts.push(`<div class="notice good"><span class="grow">${d.ready ? `<b>${d.ready} resume draft${d.ready > 1 ? "s" : ""} ready for your review.</b> ` : ""}${
-        d.pending ? `${d.pending} ${d.ready ? "more" : `resume draft${d.pending > 1 ? "s" : ""}`} queued for jobs you marked Interested${drafts ? `; next drafts run ${soon(drafts.next)}` : ""}.` : ""}</span>
-        <a class="pill" href="#documents">Open documents</a></div>`);
-    }
-    if (!st.complete) {
-      const left = st.steps.filter(s => s.state !== "done").map(s => s.title.toLowerCase());
-      parts.push(`<div class="notice"><span class="grow">Optional setup left: ${esc(left.join(", "))}.</span><a class="pill" href="#setup">Setup</a></div>`);
-    }
-  }
-  const lines = [["collector_schedule", "Collection"], ["review_schedule", "Review"], ["drafts_schedule", "Resume drafts"]].map(([id, label]) => {
-    const s = schedule(id);
-    return `<span>${label}: <b>${s ? soon(s.next) : "not scheduled"}</b>${s?.id === "collector_schedule" ? " (+ up to 2 h)" : ""}</span>`;
-  });
-  parts.push(`<div class="sched"><span>Next runs →</span>${lines.join("")}${TEST_MODE ? `<span>· Test mode on (LinkedIn capped)</span>` : ""}</div>`);
-  $("status").innerHTML = parts.join("");
 }
 
 // ---------- routing ----------
-const VIEWS_ALL = ["jobs", "documents", "profile", "activity", "setup"];
+const VIEWS_ALL = ["home", "jobs", "documents", "profile", "activity", "setup"];
 function route() {
   let v = location.hash.slice(1).split("/")[0];
-  if (!VIEWS_ALL.includes(v)) v = overview.setup.ready ? "jobs" : "setup";
+  if (!VIEWS_ALL.includes(v)) v = overview.setup.ready ? "home" : "setup";
   document.querySelectorAll("#nav a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   VIEWS_ALL.forEach(x => $("view-" + x).hidden = x !== v);
-  ({ jobs: renderJobs, documents: renderDocuments, profile: renderProfile, activity: renderActivity, setup: renderSetup })[v]();
+  ({ home: renderHome, jobs: renderJobs, documents: renderDocuments, profile: renderProfile, activity: renderActivity, setup: renderSetup })[v]();
+}
+
+// ---------- Home ----------
+let dash = null;
+const fmtDay = d => new Date(d + "T12:00").toLocaleDateString([], { month: "short", day: "numeric" });
+const SERIES = [["kept", "Kept", "var(--series-1)"], ["filtered", "Filtered out", "var(--series-2)"], ["waiting", "Waiting for review", "var(--series-3)"]];
+
+function intakeChart(perDay) {
+  // Days from the first day with data (or 14 days back, whichever is later) to today, zeros filled in.
+  const today = new Date(), start = new Date(today); start.setDate(start.getDate() - 13);
+  const first = perDay[0] ? new Date(perDay[0].day + "T12:00") : today;
+  const from = first > start ? first : start, byDay = Object.fromEntries(perDay.map(d => [d.day, d])), days = [];
+  for (const d = new Date(from); d <= today; d.setDate(d.getDate() + 1)) {
+    const key = d.toLocaleDateString("en-CA");
+    days.push({ day: key, found: 0, kept: 0, filtered: 0, waiting: 0, ...byDay[key] });
+  }
+  const W = 640, H = 210, L = 30, R = 6, T = 16, B = 24, iw = W - L - R, ih = H - T - B;
+  const max = Math.max(5, ...days.map(d => d.found));
+  const step = Math.pow(10, Math.floor(Math.log10(max))) * (max / Math.pow(10, Math.floor(Math.log10(max))) > 5 ? 2 : 1);
+  const top = Math.ceil(max / step) * step, y = v => T + ih - v / top * ih;
+  const band = iw / days.length, bw = Math.min(34, band * 0.62);
+  const grid = [];
+  for (let v = 0; v <= top; v += step) grid.push(`<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`);
+  const every = Math.ceil(days.length / 8);
+  const bars = days.map((d, i) => {
+    const x = L + band * i + (band - bw) / 2, segs = [];
+    let base = 0;
+    const parts = SERIES.filter(([k]) => d[k] > 0);
+    parts.forEach(([k, , color], n) => {
+      const y0 = y(base), y1 = y(base + d[k]) + (n < parts.length - 1 ? 0 : 0), h = y0 - y1 - (n > 0 ? 2 : 0);
+      const yb = y0 - (n > 0 ? 2 : 0);  // 2px surface gap between stacked segments
+      if (h > 0) segs.push(n === parts.length - 1
+        ? `<path d="M${x},${yb} V${yb - h + 4} Q${x},${yb - h} ${x + 4},${yb - h} H${x + bw - 4} Q${x + bw},${yb - h} ${x + bw},${yb - h + 4} V${yb} Z" fill="${color}"/>`
+        : `<rect x="${x}" y="${yb - h}" width="${bw}" height="${h}" fill="${color}"/>`);
+      base += d[k];
+    });
+    const label = i % every === 0 || i === days.length - 1 ? `<text class="axis" x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${fmtDay(d.day)}</text>` : "";
+    const total = d.found ? `<text class="total" x="${x + bw / 2}" y="${y(d.found) - 5}" text-anchor="middle">${d.found}</text>` : "";
+    return segs.join("") + total + label + `<rect class="hit" data-i="${i}" x="${L + band * i}" y="${T}" width="${band}" height="${ih}"/>`;
+  }).join("");
+  return { days, html: `
+    <div class="legend-row">${SERIES.map(([, label, c]) => `<span><i style="background:${c}"></i>${label}</span>`).join("")}</div>
+    <div class="chart" id="intake"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="New listings per day, split into kept, filtered out, and waiting">${grid.join("")}${bars}</svg></div>
+    <details class="table-view small"><summary>Show as table</summary><table class="grid"><thead><tr><th>Day</th><th class="n">Found</th>${SERIES.map(([, l]) => `<th class="n">${l}</th>`).join("")}</tr></thead>
+      <tbody>${days.map(d => `<tr><td>${fmtDay(d.day)}</td><td class="n">${d.found}</td>${SERIES.map(([k]) => `<td class="n">${d[k]}</td>`).join("")}</tr>`).join("")}</tbody></table></details>` };
+}
+
+function hbars(rows) {
+  const max = Math.max(1, ...rows.map(r => r.v));
+  return `<div class="hbars">${rows.map(r => `<div class="hbar"><div class="l">${esc(r.l)}${r.s ? `<small>${esc(r.s)}</small>` : ""}</div>
+    <div class="track"><div class="fill" style="width:${r.v / max * 100}%"></div></div><div class="v">${r.v.toLocaleString()}</div></div>`).join("")}</div>`;
+}
+
+async function renderHome() {
+  const v = $("view-home");
+  if (!dash) dash = await getJSON("/api/dashboard");
+  const st = overview.setup, d = overview.drafts, s = dash.status;
+  const count = (...ks) => ks.reduce((n, k2) => n + (s[k2] || 0), 0);
+  const hour = new Date().getHours(), hi = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const review = runs.runs.find(r => r.kind === "review"), collect = runs.runs.find(r => r.kind === "collect");
+  const kpi = (n, label, view) => `<button class="kpi" data-jobs="${view}"><b>${n}</b><span>${label}</span></button>`;
+  const next = [["collector_schedule", "Collection", " (+ up to 2 h)"], ["review_schedule", "Review", ""], ["drafts_schedule", "Resume drafts", ""]]
+    .map(([id, label, extra]) => { const x = schedule(id); return `<li><span>${label}</span><span>${x ? soon(x.next) + extra : `<a href="#setup">not scheduled</a>`}</span></li>`; });
+  const chart = intakeChart(dash.per_day);
+  const w = dash.work, t = dash.totals;
+  const srcLabel = { linkedin: "LinkedIn", indeed: "Indeed", ziprecruiter: "ZipRecruiter", dice: "Dice", "company job boards": "Company job boards" };
+  v.innerHTML = `
+    <div class="hello"><h2>${hi}${overview.name ? ", " + esc(overview.name) : ""}</h2>
+      <p>${st.ready ? `Here's where your search stands${review ? ` · last review ${when(review.started)}` : ""}.` : "Let's finish setting things up first."}</p></div>
+    ${!st.ready ? `<div class="panel"><div class="body"><div class="callout warn">Setup isn't finished: ${st.steps.filter(x => x.state === "done").length} of ${st.steps.length} steps done.
+      Open Claude in this folder and say “Set this up for me.” <a href="#setup">See setup →</a></div></div></div>` : ""}
+    <div class="kpis">
+      ${kpi(count("new"), "new jobs to review", "new")}${kpi(dash.strong, "strong fits (70+)", "new")}
+      ${kpi(count("interested", "applying"), "interested", "interested")}${kpi(count("applied", "interviewing", "offer"), "applied", "applied")}
+    </div>
+    <div class="cols">
+      <div class="panel"><div class="panel-head"><h2>Latest review</h2>${review ? `<span class="small muted">${when(review.started)}</span>` : ""}</div>
+        <div class="body">${review ? `<p style="margin-top:0">${esc(review.summary || "")}</p>` : `<p class="muted">No review yet.</p>`}
+        ${collect ? `<p class="small muted" style="margin-bottom:0">Last collection ${when(collect.started)}: ${esc(collect.summary || "")}${runs.unreviewed ? ` ${runs.unreviewed} listings are waiting for the next review.` : ""}</p>` : ""}</div></div>
+      <div class="panel"><div class="panel-head"><h2>Up next</h2></div><div class="body">
+        <ul class="upnext">${next.join("")}</ul>
+        ${d.ready || d.pending ? `<div class="callout">${d.ready ? `<b>${d.ready} resume draft${d.ready > 1 ? "s" : ""} ready</b> for your review. ` : ""}${
+          d.pending ? `${d.pending} more queued for jobs you marked Interested.` : ""} <a href="#documents">Open documents →</a></div>` : ""}
+        ${st.ready && !st.complete ? `<div class="callout warn">Optional setup left: ${esc(st.steps.filter(x => x.state !== "done").map(x => x.title.toLowerCase()).join(", "))}. <a href="#setup">Setup →</a></div>` : ""}
+        ${TEST_MODE ? `<p class="small muted" style="margin:10px 0 0">Test mode is on: LinkedIn is capped at 6 requests a day.</p>` : ""}
+      </div></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>New listings per day</h2><span class="small muted">every listing the searches turned up, and what happened to it</span></div>
+      <div class="body">${chart.html}</div></div>
+    <div class="cols">
+      <div class="panel"><div class="panel-head"><h2>From listings to applications</h2><span class="small muted">all time</span></div><div class="body">
+        ${hbars([{ l: "Listings found", v: t.found }, { l: "Kept after review", v: t.kept }, { l: "Jobs in your report", s: "duplicates across sites merged", v: t.jobs },
+                 { l: "Interested", v: count("interested", "applying", "applied", "interviewing", "offer") }, { l: "Applied", v: count("applied", "interviewing", "offer") }])}
+        <p class="small muted" style="margin:10px 0 0">${t.filtered.toLocaleString()} listings were filtered out with a reason. <a href="#activity">See what didn't make the cut →</a></p></div></div>
+      <div class="panel"><div class="panel-head"><h2>Where listings come from</h2><span class="small muted">all time</span></div><div class="body">
+        ${hbars(Object.entries(dash.sources).sort((a, b) => b[1] - a[1]).map(([k2, n]) => ({ l: srcLabel[k2] || k2, v: n })))}</div></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>What the system has done for you</h2>${w.since ? `<span class="small muted">since ${fmtDay(w.since)}</span>` : ""}</div>
+      <div class="work">
+        <div><b>${t.found.toLocaleString()}</b><span>listings looked at</span></div>
+        <div><b>${t.filtered.toLocaleString()}</b><span>filtered out for you</span></div>
+        <div><b>${t.jobs}</b><span>jobs researched and scored</span></div>
+        <div><b>${w.companies_researched}</b><span>companies researched</span></div>
+        <div><b>${w.linkedin_searches + w.connector_searches}</b><span>searches run</span></div>
+        <div><b>${w.boards}</b><span>company job boards checked</span></div>
+        <div><b>${w.one_pagers}</b><span>company one-pagers written</span></div>
+        <div><b>${w.drafts}</b><span>tailored resume drafts</span></div>
+      </div></div>`;
+  v.querySelectorAll("[data-jobs]").forEach(b => b.onclick = () => { state.view = b.dataset.jobs; store.set("view", state.view); location.hash = "jobs"; });
+  // hover tooltip on each day's column
+  const box = $("intake"), tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true; box.appendChild(tip);
+  box.querySelectorAll(".hit").forEach(h => {
+    h.onmouseenter = () => {
+      const dd = chart.days[+h.dataset.i];
+      tip.innerHTML = `<b>${fmtDay(dd.day)} · ${dd.found} found</b>${SERIES.map(([k2, l, c]) => `<div><span><i style="background:${c}"></i>${l}</span><span>${dd[k2]}</span></div>`).join("")}`;
+      tip.hidden = false;
+      const r = h.getBoundingClientRect(), b = box.getBoundingClientRect();
+      tip.style.left = Math.min(Math.max(0, r.left - b.left + r.width / 2 - 80), b.width - 170) + "px";
+      tip.style.top = "0px";
+    };
+    h.onmouseleave = () => { tip.hidden = true; };
+  });
 }
 window.addEventListener("hashchange", route);
 

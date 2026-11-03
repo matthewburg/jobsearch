@@ -181,9 +181,9 @@ Once a manual run looks right:
 
 3. **Resume drafts by Claude.** A second scheduled task, every two hours in the daytime (for example cron `0 8-20/2 * * *`), with the prompt *"Run the resume-drafts task in job-finder/PLAYBOOK.md section 8."* It drafts a tailored resume for each job you mark Interested, and exits at once when there's nothing to do. Needs Step 10 first.
 
-Claude records each schedule with `setup_mark` (including its cron), so the app's status line shows when the next collection, review, and drafts run happen.
+Claude records each schedule with `setup_mark` (including its cron), so the app's Home page shows when the next collection, review, and drafts run happen.
 
-Then the app fills in every day. New jobs carry a **New** chip, and the status line shows the latest review summary and how many resume drafts are ready.
+Then the app fills in every day. New jobs carry a **New** chip, and the Home page shows the latest review, how many resume drafts are ready, and charts of what the system found and filtered out.
 
 ## Step 10: Pick a resume style
 

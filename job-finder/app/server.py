@@ -42,6 +42,15 @@ def kit_path(rel: str, roots: tuple[str, ...]) -> Path:
     return p
 
 
+def first_name() -> str:
+    """For the Home greeting: the first name in profile/resume.json, unless it's still the template's sample."""
+    try:
+        name = json.loads((KIT / "profile" / "resume.json").read_text(encoding="utf-8"))["basics"]["name"]
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        return ""
+    return "" if name == "Jordan Rivera" else name.split()[0]
+
+
 def profile_files() -> list[dict]:
     """The person's Markdown and JSON files, for the Profile page: profile/ and draft notes."""
     out = []
@@ -89,7 +98,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"setup": setup_state.status(store),
                                    "drafts": {"ready": sum(d["status"] == "draft" and d["job_status"] not in ("dismissed",) for d in docs),
                                               "pending": len(store.drafts_pending())},
-                                   "unreviewed": store.review_queue(limit=0)["unreviewed"]})
+                                   "unreviewed": store.review_queue(limit=0)["unreviewed"],
+                                   "name": first_name()})
+            if url.path == "/api/dashboard":
+                return self._json(store.dashboard(int(q.get("days", 14))))
             if url.path == "/api/documents":
                 return self._json({"documents": store.documents(), "style": drafts.style(),
                                    "base": {"data": "profile/resume.json",

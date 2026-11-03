@@ -18,7 +18,7 @@ Ask Claude: *"Run the job finder per job-finder/PLAYBOOK.md."*
 | **Collect** | [collect.py](collect.py), no Claude | Daily, scheduled by the OS (`schedule-collector.ps1`), with a random start delay | One human-paced session through the guard: due LinkedIn searches (rotated), full postings for promising new listings, every watchlist job board. Everything goes into `seen`; new listings and their details wait in `listings`. |
 | **Review** | Claude, as a scheduled task in the desktop app | Daily, a few hours after collection | Triage the queue, search the connectors, research, score, save. The report grows; nothing is replaced. Record a summary and send a notification. |
 | **Drafts** | Claude, as a second scheduled task | Every couple of hours in the daytime | Tailored resume drafts for jobs the person marked Interested (section 8). Exits at once when there's nothing to do. |
-| **Read** | You | Whenever | Open the app. New jobs carry a **New** chip; the status line shows the last review, drafts ready, and when each schedule runs next. |
+| **Read** | You | Whenever | Open the app. Home shows the last review, drafts ready, when each schedule runs next, and charts of the intake; new jobs carry a **New** chip. |
 
 The two halves don't need each other's timing: a review works with whatever has been collected so far, and anything it doesn't get to waits for the next one.
 

@@ -241,7 +241,8 @@ class Store:
                 (job_id, s["source"], sid, s.get("url"), s.get("posted_on"), now)).rowcount
             if inserted and not is_new:
                 self.log("dedupe", f"also listed on {s['source']}", job_id=job_id)
-            self._touch_seen(s["source"], sid, job["title"], job["company"], "saved")
+            if s["source"] != "company":  # the employer's own posting is research, not a listing a search found
+                self._touch_seen(s["source"], sid, job["title"], job["company"], "saved")
         self.db.commit()
         return job_id, is_new
 
@@ -346,6 +347,40 @@ class Store:
             d["stats"] = json.loads(d["stats"]) if d["stats"] else None
             out.append(d)
         return out
+
+    def dashboard(self, days: int = 14) -> dict:
+        """Numbers for the app's Home page: daily intake, where listings come from, the
+        pipeline, and how much work the system has done."""
+        since = (date.today() - timedelta(days=int(days) - 1)).isoformat()
+        one = lambda sql, *a: self.db.execute(sql, a).fetchone()[0] or 0  # noqa: E731
+        per_day = [dict(r) for r in self.db.execute(
+            "SELECT first_seen AS day, COUNT(*) AS found, SUM(decision='saved') AS kept, "
+            "SUM(decision='skipped') AS filtered, SUM(decision IS NULL OR decision='rescue') AS waiting "
+            "FROM seen WHERE first_seen >= ? GROUP BY first_seen ORDER BY first_seen", (since,))]
+        sources: dict = {}
+        for r in self.db.execute("SELECT source, COUNT(*) AS n FROM seen GROUP BY source"):
+            name = "company job boards" if r["source"].startswith("ats:") else r["source"]
+            sources[name] = sources.get(name, 0) + r["n"]
+        status = {r["status"]: r["n"] for r in self.db.execute("SELECT status, COUNT(*) AS n FROM jobs GROUP BY status")}
+        strong = sum(1 for j in self.db.execute("SELECT analysis FROM jobs WHERE status='new'")
+                     if j["analysis"] and (json.loads(j["analysis"]).get("score") or 0) >= 70)
+        work = {"linkedin_searches": 0, "linkedin_postings": 0, "boards": 0, "connector_searches": 0}
+        for r in self.runs(10000):
+            for key in work:
+                work[key] += int((r["stats"] or {}).get(key) or 0)
+        return {
+            "per_day": per_day, "sources": sources, "status": status, "strong": strong,
+            "totals": {"found": one("SELECT COUNT(*) FROM seen"), "kept": one("SELECT COUNT(*) FROM seen WHERE decision='saved'"),
+                       "filtered": one("SELECT COUNT(*) FROM seen WHERE decision='skipped'"),
+                       "jobs": one("SELECT COUNT(*) FROM jobs")},
+            "work": {**work,
+                     "collections": one("SELECT COUNT(*) FROM runs WHERE kind='collect'"),
+                     "reviews": one("SELECT COUNT(*) FROM runs WHERE kind='review'"),
+                     "companies_researched": one("SELECT COUNT(DISTINCT company) FROM jobs WHERE company_info IS NOT NULL"),
+                     "one_pagers": one("SELECT COUNT(*) FROM companies"),
+                     "drafts": one("SELECT COUNT(*) FROM documents"),
+                     "since": (self.db.execute("SELECT MIN(started) FROM runs").fetchone()[0] or "")[:10]},
+        }
 
     def _touch_seen(self, source, source_id, title=None, company=None, decision=None, reason=None):
         today = date.today().isoformat()
