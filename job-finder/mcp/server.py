@@ -20,7 +20,9 @@ for sub in ("guard", "store", "collectors"):
     sys.path.insert(0, str(ROOT / sub))
 
 import ats  # noqa: E402
+import drafts  # noqa: E402
 import linkedin  # noqa: E402
+import setup_state  # noqa: E402
 from db import STATUSES, Store  # noqa: E402
 from polite import Guard, GuardRefused  # noqa: E402
 from runlog import LOG_DIR, RunLog  # noqa: E402
@@ -142,6 +144,51 @@ TOOLS = [
             "company": {"type": "string"}, "profile": {"type": "object"}}, "required": ["company", "profile"]},
     },
     {
+        "name": "drafts_pending",
+        "description": ("Jobs the person marked Interested (or Applying) that don't have a tailored resume draft yet, "
+                        "oldest mark first, with the posting, analysis, and resume advice. Empty = nothing to do. "
+                        "Start of the resume-drafts task (PLAYBOOK section 8)."),
+        "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "default": 3}}},
+    },
+    {
+        "name": "resume_draft_save",
+        "description": ("Write or revise a job's tailored resume draft: saves resume.json (JSON Resume, same shape as "
+                        "profile/resume.json) and notes.md in resumes/<job>/, renders it in the person's resume_style "
+                        "(HTML + PDF), and links it to the job in the report. notes: markdown with what was tailored and "
+                        "why, gaps against the posting, open questions, and a revision log. summary: one line for the card."),
+        "inputSchema": {"type": "object", "properties": {
+            "job_id": {"type": "integer"}, "resume": {"type": "object"},
+            "notes": {"type": "string"}, "summary": {"type": "string"}},
+            "required": ["job_id", "resume", "notes"]},
+    },
+    {
+        "name": "resume_draft_get",
+        "description": "A job's current resume draft (resume JSON, notes, folder), or null. Read it before revising.",
+        "inputSchema": {"type": "object", "properties": {"job_id": {"type": "integer"}}, "required": ["job_id"]},
+    },
+    {
+        "name": "resume_draft_render",
+        "description": "Re-render a job's draft after its resume.json was edited directly in its folder, and refresh the report.",
+        "inputSchema": {"type": "object", "properties": {"job_id": {"type": "integer"}}, "required": ["job_id"]},
+    },
+    {
+        "name": "setup_status",
+        "description": ("Setup progress: each step (installed, profile, connectors, tests, first_run, collector_schedule, "
+                        "review_schedule, drafts_schedule, base_resume) with done / check / todo, plus the schedules "
+                        "and their next runs. The report's Setup page shows the same thing."),
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "setup_mark",
+        "description": ("Record a setup step as done (or not). Only after you've verified it: tests passed, the task "
+                        "exists and its first run worked, the person approved their profile. For schedule steps pass "
+                        "schedule {label, kind: 'claude' | 'windows', task, cron: 'M H dom mon dow' (local time), note} "
+                        "so the report can show the next run."),
+        "inputSchema": {"type": "object", "properties": {
+            "step": {"type": "string", "enum": setup_state.STEP_IDS}, "done": {"type": "boolean", "default": True},
+            "note": {"type": "string"}, "schedule": {"type": "object"}}, "required": ["step"]},
+    },
+    {
         "name": "job_set_status",
         "description": "Change a job's status (recorded in its history). This only updates the local tracker; it never applies anywhere.",
         "inputSchema": {"type": "object", "properties": {
@@ -173,8 +220,9 @@ TOOLS = [
         "name": "review_queue",
         "description": ("Start of the daily review: listings the background collector found that haven't been reviewed "
                         "(no saved/skipped decision), newest first, with the details it kept (description, salary, "
-                        "applicants), plus the latest collector and review runs. Every item must end up either saved "
-                        "(job_save) or skipped (seen_skip)."),
+                        "applicants), plus the latest collector and review runs. Listings the person rescued from the "
+                        "filtered-out list come first (decision 'rescue', their note in reason): save them, and treat the "
+                        "note as tuning feedback. Every item must end up either saved (job_save) or skipped (seen_skip)."),
         "inputSchema": {"type": "object", "properties": {
             "limit": {"type": "integer", "default": 40},
             "description_chars": {"type": "integer", "default": 2500}}},
@@ -255,6 +303,23 @@ def call_tool(name: str, args: dict):
         return store().company(args["company"])
     if name == "company_save":
         return {"key": store().save_company(args["company"], args["profile"])}
+    if name == "drafts_pending":
+        keep = ("id", "title", "company", "location", "workplace", "salary_text", "status", "description", "analysis")
+        return [{k: j[k] for k in keep} for j in store().drafts_pending()[:int(args.get("limit", 3))]]
+    if name == "resume_draft_save":
+        return drafts.save_resume(store(), int(args["job_id"]), args["resume"], args["notes"], args.get("summary", ""))
+    if name == "resume_draft_get":
+        return drafts.read(store(), int(args["job_id"]))
+    if name == "resume_draft_render":
+        doc = drafts.read(store(), int(args["job_id"]))
+        if not doc:
+            raise KeyError(f"job {args['job_id']} has no resume draft")
+        return drafts.render(store(), int(args["job_id"]), drafts.KIT / doc["path"], doc.get("summary") or "")
+    if name == "setup_status":
+        return setup_state.status(store())
+    if name == "setup_mark":
+        setup_state.mark(args["step"], args.get("done", True), args.get("note", ""), args.get("schedule"))
+        return setup_state.status(store())
     if name == "job_set_status":
         store().set_status(int(args["job_id"]), args["status"], args.get("note", ""))
         return {"ok": True}

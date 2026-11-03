@@ -17,7 +17,8 @@ Ask Claude: *"Run the job finder per job-finder/PLAYBOOK.md."*
 |---|---|---|---|
 | **Collect** | [collect.py](collect.py), no Claude | Daily, scheduled by the OS (`schedule-collector.ps1`), with a random start delay | One human-paced session through the guard: due LinkedIn searches (rotated), full postings for promising new listings, every watchlist job board. Everything goes into `seen`; new listings and their details wait in `listings`. |
 | **Review** | Claude, as a scheduled task in the desktop app | Daily, a few hours after collection | Triage the queue, search the connectors, research, score, save. The report grows; nothing is replaced. Record a summary and send a notification. |
-| **Read** | You | Whenever | Open the report. New jobs carry a **New** chip; the banner shows the last review's summary. |
+| **Drafts** | Claude, as a second scheduled task | Every couple of hours in the daytime | Tailored resume drafts for jobs the person marked Interested (section 8). Exits at once when there's nothing to do. |
+| **Read** | You | Whenever | Open the app. New jobs carry a **New** chip; the status line shows the last review, drafts ready, and when each schedule runs next. |
 
 The two halves don't need each other's timing: a review works with whatever has been collected so far, and anything it doesn't get to waits for the next one.
 
@@ -170,7 +171,39 @@ The card is a quick gut check. The one-pager is for when the person wants to kee
   - `sources`: `[{title, url}]`
 - **Rules:** facts over adjectives, dated where it matters. Label estimates and third-party numbers. Aim for about one screen of reading, not a report. Same writing rules as section 6.
 
-## 8. Wrap up
+## 8. Tailored resume drafts
+
+When the person marks a job **Interested**, they get a tailored resume draft to start from. The resume-drafts scheduled task runs this every couple of hours; the person can also ask for one directly ("Draft a resume for Acme – Director of Product").
+
+**The task:**
+1. `drafts_pending`. If it's empty, stop right away: no research, no notification.
+2. For each job (up to 3 a run, oldest mark first), write the draft as below and save it with `resume_draft_save`.
+3. One PushNotification (under 200 characters): "Resume drafts ready: Acme Director of Product, Globex Group PM". None on an empty run.
+
+**Read first, every time:**
+- `../profile/resume.json`: the **base resume, the source of truth**. A draft is this, tailored; never a rewrite from scratch.
+- `../profile/resume-notes.md`: decisions already made about wording, framing, and what to leave out. They apply to every draft.
+- `../profile/targets.md` (title framing, the never-mention list) and the experience bank (`roles/`, `bullet-bank.md`, `personal-projects.md`) for material that isn't on the base resume.
+- The job: posting, analysis (`why`, `concerns`, `resume` advice), and the company one-pager if there is one (`company_get`).
+
+**How to tailor:**
+- **Headline and summary:** speak to this role's core ask in its own vocabulary, using only true claims.
+- **Bullets:** reorder so the most relevant come first; swap in better-matched bullets from the bullet bank; reword to mirror the posting's terms where they honestly fit. Cut what doesn't serve this role.
+- **Skills:** lead with the ones the posting asks for that the person actually has.
+- **Keep:** the same length as the base (usually one to two pages), the same structure, dates, and titles. Never change a title, date, or number.
+- **Never invent** experience, metrics, tools, or domains. If the posting wants something the person lacks, don't paper over it: note it.
+
+**`notes` (markdown), what the person reads first:**
+- `## What I emphasized` and `## What I cut or downplayed`: a few bullets each, with why.
+- `## Gaps against the posting`: requirements the resume can't honestly cover, and how to handle each (cover letter, interview story, or skip).
+- `## Questions for you`: anything you'd need from them to make it stronger (a metric, whether they've done X).
+- `## Revision log`: dated entries, starting with "Drafted from the base resume."
+
+`summary`: one line for the card, e.g. "Leads with platform and admin tooling; AI policy work moved up."
+
+**Revisions happen in conversation.** When the person asks for a change ("lead with the AI work", "make it one page"), read the draft (`resume_draft_get`), change it, and save it again with `resume_draft_save`, adding a revision-log entry. If they want the change everywhere, also suggest updating the base resume or `resume-notes.md`, so future drafts start from it.
+
+## 9. Wrap up
 
 - Tell the person:
   - how many listings came back, how many were new, and how many were saved vs. skipped
@@ -182,4 +215,5 @@ The card is a quick gut check. The one-pager is for when the person wants to kee
 ## The learning loop
 
 - **Dismiss reasons and interested picks are the training signal.** Read them before every run (step 1).
+- **Rescues are the other half.** The app's Activity page lists every listing the review filtered out, with its reason. When the person rescues one, it comes back in `review_queue` with their note: save and score it, and let the note loosen whatever rule skipped it.
 - When a pattern shows up (e.g. "too big a company" three times), suggest updating `targets.md` or `search.md` instead of quietly drifting. The profile files stay the source of truth.

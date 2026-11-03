@@ -2,6 +2,8 @@
 
 **For someone who wants to run this for their own job search, and for their Claude.** Open a Claude session in the kit folder and say: *"Read SETUP.md and set this up for me."* Claude walks through the steps below, asks the questions, and fills in the files with you.
 
+**For Claude:** the app's Setup page (http://127.0.0.1:8765/#setup, once the installer has run) shows these steps. Record each one with the `setup_mark` tool **only after you've verified it**: tests passed, the person approved their profile, a scheduled task exists and its first run worked. For schedule steps, include the schedule (`label`, `kind`, `task`, `cron`) so the app can show when it runs next. Some steps the app also checks itself (the installer ran, a first review exists, the Windows collector task is registered). The job list stays closed until the required steps are done.
+
 Status: in daily use on a real search. What isn't done yet is in [Still to build](#still-to-build).
 
 ## What it does
@@ -177,7 +179,11 @@ Once a manual run looks right:
 
 2. **Daily review by Claude.** In the Claude desktop app, ask Claude to create a scheduled task for the daily review. It's a task running in the kit folder each day a few hours after collection, with the prompt *"Run the daily review in job-finder/PLAYBOOK.md."* Use "Run now" once to approve its tools. Scheduled tasks run while the app is open; a missed one runs when the app next opens.
 
-Then the report fills in every day. New jobs carry a **New** chip, and the banner shows the latest review summary.
+3. **Resume drafts by Claude.** A second scheduled task, every two hours in the daytime (for example cron `0 8-20/2 * * *`), with the prompt *"Run the resume-drafts task in job-finder/PLAYBOOK.md section 8."* It drafts a tailored resume for each job you mark Interested, and exits at once when there's nothing to do. Needs Step 10 first.
+
+Claude records each schedule with `setup_mark` (including its cron), so the app's status line shows when the next collection, review, and drafts run happen.
+
+Then the app fills in every day. New jobs carry a **New** chip, and the status line shows the latest review summary and how many resume drafts are ready.
 
 ## Step 10: Pick a resume style
 
@@ -187,7 +193,7 @@ Ask Claude to draft `profile/resume.json` from your experience bank. Then build 
 python -I resume-builder/build.py
 ```
 
-It renders your content in every style (Modern, Executive, Classic, Builder) as HTML and PDF, plus `resumes/styles/index.html` to compare them side by side. All styles are single-column and parse-safe. Pick one, settle the content decisions with Claude (headline, summary, title framing, projects, page count), and that becomes the base every tailored resume starts from. Details, and what to expect from generated resumes: [resume-builder/README.md](resume-builder/README.md).
+It renders your content in every style (Modern, Executive, Classic, Builder) as HTML and PDF, plus `resumes/styles/index.html` to compare them side by side. All styles are single-column and parse-safe. Pick one (it goes in `profile/settings.json` as `resume_style`), settle the content decisions with Claude (headline, summary, title framing, projects, page count), and that becomes the base every tailored resume starts from. Details, and what to expect from generated resumes: [resume-builder/README.md](resume-builder/README.md).
 
 ## Sharing a copy
 

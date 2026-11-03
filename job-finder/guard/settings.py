@@ -25,6 +25,7 @@ DEFAULTS = {
     "stale_days": 45,
     "test_mode": True,
     "private_terms": [],
+    "resume_style": "modern",     # the style tailored drafts use (a stylesheet in resume-builder/themes/)
     "collector": {
         "start_jitter_minutes": 120,  # random delay after the scheduled trigger
         "daily_searches": 3,          # the first N searches in search.md run every day

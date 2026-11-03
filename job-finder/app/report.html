@@ -3,170 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Job Report</title>
-<style>
-:root {
-  --bg: #f4f3ef; --panel: #ffffff; --panel-2: #faf9f6; --ink: #1c1d1f; --muted: #6a6b6e; --faint: #9a9a9a;
-  --line: #e3e1db; --accent: #1f6f78; --accent-ink: #ffffff; --accent-soft: #e2f0f1;
-  --good: #23784a; --good-soft: #e3f3e9; --warn: #a0620d; --warn-soft: #fbf0dc;
-  --bad: #b03a3a; --bad-soft: #f8e4e4; --none: #8a8a8a; --none-soft: #efeeea;
-  --target: rgba(35, 120, 74, .18); --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 8px rgba(0,0,0,.04);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #141517; --panel: #1c1d20; --panel-2: #212226; --ink: #ecebe8; --muted: #a3a3a6; --faint: #74747a;
-    --line: #2f3034; --accent: #5fb8c1; --accent-ink: #0e1a1c; --accent-soft: #1b3236;
-    --good: #6fcf97; --good-soft: #1b3326; --warn: #e6b062; --warn-soft: #3a2e1a;
-    --bad: #ef8b8b; --bad-soft: #3a2222; --none: #8d8d92; --none-soft: #26272a;
-    --target: rgba(111, 207, 151, .22); --shadow: none;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #141517; --panel: #1c1d20; --panel-2: #212226; --ink: #ecebe8; --muted: #a3a3a6; --faint: #74747a;
-  --line: #2f3034; --accent: #5fb8c1; --accent-ink: #0e1a1c; --accent-soft: #1b3236;
-  --good: #6fcf97; --good-soft: #1b3326; --warn: #e6b062; --warn-soft: #3a2e1a;
-  --bad: #ef8b8b; --bad-soft: #3a2222; --none: #8d8d92; --none-soft: #26272a;
-  --target: rgba(111, 207, 151, .22); --shadow: none;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 14.5px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
-.wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
-header { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 10px; flex-wrap: wrap; }
-h1 { font-size: 19px; margin: 0; letter-spacing: -.01em; }
-.sub { color: var(--muted); font-size: 12.5px; }
-.stats { display: flex; gap: 18px; flex-wrap: wrap; }
-.stat b { font-size: 16px; display: block; line-height: 1.1; }
-.stat span { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
-.bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding-bottom: 10px; }
-.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-.tab { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px;
-  padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.tab .n { opacity: .6; margin-left: 5px; font-variant-numeric: tabular-nums; }
-.controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-select, input[type=search] { font: inherit; font-size: 13px; color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; }
-input[type=search] { width: 170px; }
-.toggle { font-size: 12.5px; border: 1px solid var(--line); background: var(--panel); color: var(--muted);
-  border-radius: 999px; padding: 4px 10px; cursor: pointer; font-family: inherit; }
-.toggle[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-main { padding: 16px 0 60px; }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin: 0 0 14px; }
-.runs { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; font-size: 13px; line-height: 1.45; }
-.runs:empty { display: none; }
-.runs b { color: var(--accent); font-weight: 600; }
-.runs .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
-.chip.new { background: var(--accent); color: var(--accent-ink); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px; box-shadow: var(--shadow); overflow: hidden; }
-.card.dim { opacity: .62; }
-.main { display: grid; grid-template-columns: 56px 1fr 190px; gap: 16px; padding: 16px 18px 12px; }
-.score { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; position: relative;
-  background: conic-gradient(var(--c) calc(var(--p) * 1%), var(--none-soft) 0); }
-.score::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--panel); }
-.score b { position: relative; font-size: 18px; font-variant-numeric: tabular-nums; }
-.fit { text-align: center; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; color: var(--c); }
-.title { font-size: 16.5px; font-weight: 650; margin: 0; line-height: 1.3; }
-.co { color: var(--muted); margin-top: 2px; font-size: 13.5px; }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-.chip { background: var(--none-soft); color: var(--ink); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
-.chip.warn { background: var(--warn-soft); color: var(--warn); }
-.chip.bad { background: var(--bad-soft); color: var(--bad); }
-.chip.ai { background: var(--accent-soft); color: var(--accent); }
-.summary { margin: 10px 0 0; color: var(--ink); }
-
-.pay { border-left: 1px solid var(--line); padding-left: 14px; }
-.pay .amt { font-weight: 650; font-size: 15px; font-variant-numeric: tabular-nums; }
-.pay .lbl { font-size: 11.5px; font-weight: 600; color: var(--pc); margin-top: 1px; }
-.paybar { position: relative; height: 8px; border-radius: 4px; background: var(--none-soft); margin: 8px 0 4px; }
-.paybar .tgt { position: absolute; top: 0; bottom: 0; background: var(--target); border-radius: 2px; }
-.paybar .floor { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--warn); border-radius: 1px; }
-.paybar .rng { position: absolute; top: 1px; bottom: 1px; background: var(--pc); border-radius: 3px; min-width: 4px; }
-.pay .scale { display: flex; justify-content: space-between; color: var(--faint); font-size: 10.5px; }
-.facts { margin-top: 10px; font-size: 12.5px; color: var(--muted); display: grid; gap: 2px; }
-.facts .warn { color: var(--warn); }
-
-.detail { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--line); background: var(--panel-2); }
-.col { padding: 12px 18px; }
-.col + .col { border-left: 1px solid var(--line); }
-.col h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.col ul { margin: 0; padding: 0; list-style: none; }
-.col li { padding-left: 16px; position: relative; margin: 3px 0; }
-.col li::before { position: absolute; left: 0; top: 0; font-weight: 700; }
-.pros li::before { content: "+"; color: var(--good); }
-.cons li::before { content: "–"; color: var(--warn); }
-.col p { margin: 0 0 8px; }
-.col p b { font-weight: 600; }
-
-.foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 18px; border-top: 1px solid var(--line); }
-.links { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); align-items: center; }
-.src { color: var(--accent); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
-.src:hover { border-color: var(--accent); }
-details { font-size: 13px; }
-details summary { cursor: pointer; color: var(--accent); list-style: none; }
-details summary::-webkit-details-marker { display: none; }
-details summary::before { content: "▸ "; }
-details[open] summary::before { content: "▾ "; }
-.more { padding: 0 18px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
-.more p { margin: 6px 0; }
-.history { margin: 6px 0 0; padding-left: 16px; color: var(--muted); font-size: 12.5px; }
-.actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-.btn:hover { border-color: var(--ink); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.status-pill { font-size: 11.5px; color: var(--muted); border: 1px dashed var(--line); border-radius: 999px; padding: 1px 8px; }
-.empty { color: var(--muted); text-align: center; padding: 48px 0; }
-.chip.todo { background: transparent; color: var(--warn); border: 1px dashed var(--warn); padding: 0 7px; }
-.src.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.src.search { color: var(--muted); border-style: dashed; }
-.gaps { margin: 6px 0 0; padding-left: 16px; font-size: 12.5px; color: var(--warn); }
-.gaps span { color: var(--muted); }
-
-dialog.co-page { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line);
-  border-radius: 14px; background: var(--panel); color: var(--ink); box-shadow: 0 12px 48px rgba(0,0,0,.25); }
-dialog.co-page::backdrop { background: rgba(0,0,0,.45); }
-.co-head { position: sticky; top: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 16px 20px 12px;
-  display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.co-head h2 { margin: 0; font-size: 19px; }
-.co-head .tag { color: var(--muted); margin-top: 2px; }
-.co-body { padding: 4px 20px 20px; }
-.co-body h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 6px; }
-.co-body p { margin: 0 0 8px; }
-.co-body ul { margin: 0; padding-left: 18px; }
-.co-body li { margin: 3px 0; }
-.co-body .news li span { color: var(--muted); font-variant-numeric: tabular-nums; }
-.co-links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; font-size: 12.5px; }
-.co-src { font-size: 12px; color: var(--muted); }
-.co-src a { color: var(--muted); }
-a { color: var(--accent); }
-
-@media (max-width: 760px) {
-  header { position: static; }
-  .main { grid-template-columns: 48px 1fr; }
-  .score { width: 48px; height: 48px; }
-  .pay { grid-column: 1 / -1; border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 10px; }
-  .detail, .more { grid-template-columns: 1fr; }
-  .col + .col { border-left: 0; border-top: 1px solid var(--line); }
-  input[type=search] { width: 100%; }
-  .controls { width: 100%; }
-}
-</style>
+<title>Job Search</title>
+<link rel="stylesheet" href="/report.css">
 </head>
 <body>
 <header>
   <div class="wrap">
     <div class="top">
-      <div><h1>Job Report</h1><div class="sub" id="sub"></div></div>
+      <div class="brand"><h1>Job Search</h1><span class="sub" id="sub"></span></div>
       <div class="stats" id="stats"></div>
     </div>
-    <div class="bar">
+    <nav class="nav" id="nav">
+      <a href="#jobs" data-view="jobs">Jobs</a>
+      <a href="#documents" data-view="documents">Documents<span class="badge ok" id="nav-docs" hidden></span></a>
+      <a href="#profile" data-view="profile">Profile</a>
+      <a href="#activity" data-view="activity">Activity</a>
+      <a href="#setup" data-view="setup">Setup<span class="badge" id="nav-setup" hidden></span></a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <div class="status" id="status"></div>
+
+  <section class="view" id="view-jobs" hidden>
+    <div class="toolbar" id="jobs-toolbar">
       <nav class="tabs" id="tabs" role="tablist"></nav>
       <div class="controls">
-        <input type="search" id="q" placeholder="Search title, company…" aria-label="Search">
+        <input type="search" id="q" placeholder="Search title, company…" aria-label="Search jobs">
         <select id="sort" aria-label="Sort">
           <option value="score">Best fit</option>
           <option value="pay">Highest pay (midpoint)</option>
@@ -179,304 +42,17 @@ a { color: var(--accent); }
         <button class="toggle" data-f="ai" aria-pressed="false">AI-forward</button>
       </div>
     </div>
-  </div>
-</header>
-<main class="wrap">
-  <div class="runs" id="runs"></div>
-  <div class="legend" id="legend"></div>
-  <div id="list"></div>
+    <div class="legend" id="legend"></div>
+    <div id="list"></div>
+  </section>
+
+  <section class="view" id="view-documents" hidden></section>
+  <section class="view" id="view-profile" hidden></section>
+  <section class="view" id="view-activity" hidden></section>
+  <section class="view" id="view-setup" hidden></section>
 </main>
 <dialog class="co-page" id="co-page"></dialog>
-<script>
-// Pay band and stale age come from profile/settings.json (GET /api/settings).
-let FLOOR = null, TARGET_LO = null, TARGET_HI = null, STALE_DAYS = 45, PROFILE_MIN_SCORE = 60;
-let SCALE_LO = 0, SCALE_HI = 1;  // range-bar ends, derived from the band
-
-function applySettings(s) {
-  ({ floor: FLOOR, target_low: TARGET_LO, target_high: TARGET_HI } = s.pay || {});
-  STALE_DAYS = s.stale_days ?? 45;
-  PROFILE_MIN_SCORE = s.profile_min_score ?? 60;
-  const band = FLOOR && TARGET_LO && TARGET_HI;
-  if (band) {
-    SCALE_LO = Math.floor(FLOOR * 0.75 / 10000) * 10000;
-    SCALE_HI = Math.ceil(TARGET_HI * 1.6 / 10000) * 10000;
-  }
-  const dot = c => `<i style="background:var(--${c})"></i>`;
-  document.getElementById("legend").innerHTML = (band
-    ? `<span>${dot("good")}Pay in or above target (${k(TARGET_LO)}–${k(TARGET_HI)})</span>
-       <span>${dot("warn")}At the floor (${k(FLOOR)}–${k(TARGET_LO)}): needs a great fit</span>
-       <span>${dot("bad")}Tops out below ${k(FLOOR)}</span>`
-    : `<span>No pay band set: add one to profile/settings.json</span>`)
-    + `<span>${dot("none")}Not listed</span><span>Stale = posted ${STALE_DAYS}+ days ago</span>`;
-}
-
-const VIEWS = [
-  ["new", "New", j => j.status === "new"],
-  ["interested", "Interested", j => ["interested", "applying"].includes(j.status)],
-  ["applied", "Applied", j => ["applied", "interviewing", "offer"].includes(j.status)],
-  ["closed", "Closed", j => ["rejected", "ghosted"].includes(j.status)],
-  ["dismissed", "Dismissed", j => j.status === "dismissed"],
-  ["all", "All", () => true],
-];
-const store = {
-  get(k, d) { try { const v = localStorage.getItem("jr." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem("jr." + k, JSON.stringify(v)); } catch (e) {} },
-};
-let jobs = [], companies = {};
-let state = { view: store.get("view", "new"), sort: store.get("sort", "score"), q: "",
-              filters: store.get("filters", { remote: false, payok: false, fresh: false, ai: false }) };
-
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const k = n => "$" + Math.round(n / 1000) + "K";
-
-function payFit(j) {
-  const hi = j.salary_max || j.salary_min;
-  if (!hi) return { cls: "none", label: "Pay not listed" };
-  if (!FLOOR || !TARGET_LO || !TARGET_HI) return { cls: "none", label: "No pay band set" };
-  if (hi < FLOOR) return { cls: "bad", label: "Below your floor" };
-  if (hi < TARGET_LO) return { cls: "warn", label: "At your floor" };
-  if (j.salary_min && j.salary_min < FLOOR * 0.97) return { cls: "warn", label: "Reaches target; low end under floor" };
-  if ((j.salary_min || hi) >= TARGET_LO || hi >= TARGET_LO) return { cls: "good", label: (j.salary_min || 0) > TARGET_HI ? "Above target" : "In target range" };
-}
-const mid = j => ((j.salary_min || j.salary_max || 0) + (j.salary_max || j.salary_min || 0)) / 2;
-const isStale = j => j.age_days != null && j.age_days >= STALE_DAYS;
-const isRemote = j => /remote/i.test(`${j.workplace} ${j.location}`);
-
-async function load() {
-  const [r, c] = await Promise.all([fetch("/api/jobs"), fetch("/api/companies")]);
-  jobs = (await r.json()).jobs;
-  companies = (await c.json()).companies;
-  render();
-}
-
-// Latest background collection and Claude review (GET /api/runs)
-let lastReview = null;
-const when = iso => new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-const isFresh = j => lastReview && j.first_seen.slice(0, 10) >= lastReview.started.slice(0, 10);
-
-function renderRuns(data) {
-  const review = data.runs.find(r => r.kind === "review"), collect = data.runs.find(r => r.kind === "collect");
-  lastReview = review || null;
-  const parts = [];
-  if (review) parts.push(`<div><b>Review · ${when(review.started)}</b> — ${esc(review.summary || "")}</div>`);
-  const meta = [];
-  if (collect) meta.push(`Last collection ${when(collect.started)} (${collect.status}): ${esc(collect.summary || "")}`);
-  if (data.unreviewed) meta.push(`${data.unreviewed} listings waiting for the next review`);
-  if (meta.length) parts.push(`<div class="meta">${meta.join(" · ")}</div>`);
-  document.getElementById("runs").innerHTML = parts.join("");
-}
-
-async function init() {
-  applySettings(await (await fetch("/api/settings")).json());
-  renderRuns(await (await fetch("/api/runs")).json());
-  await load();
-}
-
-async function setStatus(id, status) {
-  let note = "";
-  if (status === "dismissed") {
-    const reason = prompt("Why dismiss? (this helps tune future reports)");
-    if (reason === null) return;
-    note = reason;
-  }
-  await fetch(`/api/jobs/${id}/status`, { method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ status, note }) });
-  await load();
-}
-
-function filtered() {
-  const f = state.filters, q = state.q.toLowerCase();
-  let list = jobs.filter(VIEWS.find(v => v[0] === state.view)[2]);
-  if (f.remote) list = list.filter(isRemote);
-  if (f.payok) list = list.filter(j => !["bad"].includes(payFit(j).cls));
-  if (f.fresh) list = list.filter(j => !isStale(j));
-  if (f.ai) list = list.filter(j => j.analysis?.ai_forward);
-  if (q) list = list.filter(j => `${j.title} ${j.company} ${j.location}`.toLowerCase().includes(q));
-  const by = {
-    score: (a, b) => (b.analysis?.score ?? -1) - (a.analysis?.score ?? -1),
-    pay: (a, b) => mid(b) - mid(a),
-    newest: (a, b) => (a.age_days ?? 1e9) - (b.age_days ?? 1e9),
-    company: (a, b) => a.company.localeCompare(b.company),
-  }[state.sort];
-  return list.sort(by);
-}
-
-function render() {
-  const tabs = document.getElementById("tabs");
-  tabs.innerHTML = VIEWS.map(([key, label, f]) =>
-    `<button class="tab" role="tab" aria-selected="${key === state.view}" data-v="${key}">${label}<span class="n">${jobs.filter(f).length}</span></button>`).join("");
-  tabs.querySelectorAll(".tab").forEach(b => b.onclick = () => { state.view = b.dataset.v; store.set("view", state.view); render(); });
-  document.querySelectorAll(".toggle").forEach(b => b.setAttribute("aria-pressed", state.filters[b.dataset.f]));
-  document.getElementById("sort").value = state.sort;
-
-  const live = jobs.filter(j => j.status === "new");
-  const strong = live.filter(j => (j.analysis?.score ?? 0) >= 70).length;
-  const paid = live.filter(j => payFit(j).cls === "good").length;
-  document.getElementById("stats").innerHTML =
-    `<div class="stat"><b>${live.length}</b><span>to review</span></div>
-     <div class="stat"><b>${strong}</b><span>strong fits</span></div>
-     <div class="stat"><b>${paid}</b><span>pay in target</span></div>
-     <div class="stat"><b>${jobs.filter(j => ["applied","interviewing","offer"].includes(j.status)).length}</b><span>applied</span></div>`;
-  const sources = [...new Set(jobs.flatMap(j => j.sources.map(s => s.source.replace("ats:", ""))))];
-  document.getElementById("sub").textContent = `${jobs.length} jobs tracked · ${sources.join(" · ")}`;
-
-  const list = filtered();
-  document.getElementById("list").innerHTML = list.length ? list.map(card).join("")
-    : `<p class="empty">Nothing matches. Try another tab or clear the filters.</p>`;
-  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => setStatus(+b.dataset.id, b.dataset.act));
-  document.querySelectorAll("[data-co]").forEach(b => b.onclick = () => openCompany(b.dataset.co));
-}
-
-// Company one-pagers (written by the review; see PLAYBOOK section 7)
-const MARKED = ["interested", "applying", "applied", "interviewing", "offer"];
-const wantsProfile = j => MARKED.includes(j.status) || (j.analysis?.score ?? 0) >= PROFILE_MIN_SCORE;
-const GAP_LABELS = { description: "Full job description", employer_posting: "Employer's own posting",
-  salary: "Pay", sentiment: "Employee sentiment", news: "Recent news", company_profile: "Company one-pager" };
-const gapLabel = g => GAP_LABELS[g.what] || g.what;
-const linkOut = (url, label, cls = "src") => url
-  ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>` : "";
-
-function openCompany(key) {
-  const p = companies[key];
-  if (!p) return;
-  const li = xs => (xs || []).map(x => `<li>${esc(x)}</li>`).join("");
-  const open = jobs.filter(j => j.company_key === key && !["dismissed", "rejected", "ghosted"].includes(j.status));
-  const dlg = document.getElementById("co-page");
-  dlg.innerHTML = `<div class="co-head">
-      <div>
-        <h2>${esc(p.name)}</h2>
-        ${p.tagline ? `<div class="tag">${esc(p.tagline)}</div>` : ""}
-        <div class="co-links">${linkOut(p.website, "Website")}${linkOut(p.careers, "Careers")}
-          <span class="sub">Updated ${esc(p.updated.slice(0, 10))}</span></div>
-      </div>
-      <button class="btn" id="co-close" aria-label="Close">Close</button>
-    </div>
-    <div class="co-body">
-      ${p.overview ? `<h3>Overview</h3><p>${esc(p.overview)}</p>` : ""}
-      ${(p.sections || []).map(s => `<h3>${esc(s.heading)}</h3>${s.text ? `<p>${esc(s.text)}</p>` : ""}${s.bullets?.length ? `<ul>${li(s.bullets)}</ul>` : ""}`).join("")}
-      ${p.news?.length ? `<h3>Recent news</h3><ul class="news">${p.news.map(n =>
-        `<li><span>${esc(n.date || "")}</span> ${n.url ? `<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.text)}</a>` : esc(n.text)}</li>`).join("")}</ul>` : ""}
-      ${p.for_you?.length ? `<h3>What it means for you</h3><ul>${li(p.for_you)}</ul>` : ""}
-      ${p.questions?.length ? `<h3>Questions worth asking</h3><ul>${li(p.questions)}</ul>` : ""}
-      ${open.length ? `<h3>Jobs here in your tracker</h3><ul>${open.map(j =>
-        `<li>${esc(j.title)} · ${j.analysis?.score ?? "–"} · ${esc(j.status)}</li>`).join("")}</ul>` : ""}
-      ${p.sources?.length ? `<h3>Sources</h3><div class="co-src">${p.sources.map(s =>
-        `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a>`).join(" · ")}</div>` : ""}
-    </div>`;
-  dlg.querySelector("#co-close").onclick = () => dlg.close();
-  dlg.onclick = e => { if (e.target === dlg) dlg.close(); };
-  dlg.showModal();
-  dlg.scrollTop = 0;
-}
-
-function payBlock(j) {
-  const pf = payFit(j);
-  const color = `var(--${pf.cls})`;
-  const lo = j.salary_min || j.salary_max, hi = j.salary_max || j.salary_min;
-  const pct = v => Math.max(0, Math.min(100, (v - SCALE_LO) / (SCALE_HI - SCALE_LO) * 100));
-  const amt = j.salary_text && !j.salary_min ? esc(j.salary_text) : hi ? (lo === hi ? k(hi) : `${k(lo)}–${k(hi)}`) : "—";
-  return `<div class="pay" style="--pc:${color}">
-    <div class="amt">${amt}</div>
-    <div class="lbl">${pf.label}</div>
-    ${FLOOR && TARGET_LO && TARGET_HI ? `<div class="paybar" title="Green band = your ${k(TARGET_LO)}–${k(TARGET_HI)} target; amber tick = ${k(FLOOR)} floor">
-      <div class="tgt" style="left:${pct(TARGET_LO)}%;width:${pct(TARGET_HI) - pct(TARGET_LO)}%"></div>
-      <div class="floor" style="left:${pct(FLOOR)}%"></div>
-      ${hi ? `<div class="rng" style="left:${pct(lo)}%;width:${Math.max(pct(hi) - pct(lo), 1.5)}%"></div>` : ""}
-    </div>
-    <div class="scale"><span>${k(SCALE_LO)}</span><span>${k(SCALE_HI)}+</span></div>` : ""}
-    <div class="facts">
-      <span>${esc(j.workplace || "workplace ?")}${j.employment_type ? " · " + esc(j.employment_type) : ""}</span>
-      <span class="${isStale(j) ? "warn" : ""}">${j.age_days == null ? "Posting date unknown" : j.age_days === 0 ? "Posted today" : `Posted ${j.age_days}d ago`}${isStale(j) ? " · stale" : ""}</span>
-      ${j.applicants ? `<span>${esc(j.applicants)}</span>` : ""}
-    </div>
-  </div>`;
-}
-
-function card(j) {
-  const a = j.analysis || {}, c = j.company_info || {};
-  const s = a.score;
-  const sc = s == null ? "none" : s >= 70 ? "good" : s >= 45 ? "warn" : "bad";
-  const li = xs => (xs || []).map(x => `<li>${esc(x)}</li>`).join("");
-  const flags = (j.flags || []).map(f => `<span class="chip ${f.level === "red" ? "bad" : "warn"}">${esc(f.text)}</span>`).join("");
-  // Employer's own posting first; then job boards, one link per URL (a search page is labeled as one).
-  const own = j.sources.find(s => s.source === "company" && s.url);
-  const seenUrls = new Set(own ? [own.url] : []);
-  const boards = j.sources.filter(s => s.source !== "company" && s.url && !seenUrls.has(s.url) && seenUrls.add(s.url));
-  const srcs = (own ? linkOut(own.url, "Company posting ↗", "src primary")
-      : linkOut(`https://www.google.com/search?q=${encodeURIComponent(`${j.company} careers "${j.title.trim()}"`)}`,
-                "Find on company site", "src search"))
-    + boards.map(s => /[?&](search|keywords|q)=/.test(s.url)
-      ? linkOut(s.url, `${s.source.replace("ats:", "")} (search results)`, "src search")
-      : linkOut(s.url, s.source.replace("ats:", ""))).join("");
-  const gaps = j.gaps || [];
-  const profile = companies[j.company_key];
-  const profilePending = !profile && wantsProfile(j) && !["dismissed", "rejected", "ghosted"].includes(j.status);
-  const allGaps = profilePending && !gaps.some(g => g.what === "company_profile")
-    ? [...gaps, { what: "company_profile", why: MARKED.includes(j.status) ? "you marked this job" : "strong enough score" }] : gaps;
-  const hist = (j.events || []).map(e => `<li>${esc(e.at.slice(0, 16).replace("T", " "))} · ${esc(e.kind)}: ${esc(e.detail)}</li>`).join("");
-  const act = (st, label, primary) => j.status === st ? "" :
-    `<button class="btn${primary ? " primary" : ""}" data-act="${st}" data-id="${j.id}">${label}</button>`;
-  const dim = ["dismissed", "rejected", "ghosted"].includes(j.status);
-  return `<article class="card${dim ? " dim" : ""}">
-    <div class="main">
-      <div style="--c:var(--${sc})">
-        <div class="score" style="--p:${s ?? 0}" title="Fit score (0–100)"><b>${s ?? "–"}</b></div>
-        <div class="fit">${esc(a.fit || "")}</div>
-      </div>
-      <div>
-        <h2 class="title">${esc(j.title.trim())}</h2>
-        <div class="co">${esc(j.company)} · ${esc(j.location || "")}</div>
-        <div class="chips">
-          ${isFresh(j) ? `<span class="chip new">New</span>` : ""}
-          ${a.lean ? `<span class="chip">${esc(a.lean)}</span>` : ""}
-          ${a.ai_forward ? `<span class="chip ai">AI-forward</span>` : ""}
-          ${allGaps.length ? `<span class="chip todo" title="Still to research: ${esc(allGaps.map(gapLabel).join(", "))}. The next review fills these in.">Research in progress · ${allGaps.length}</span>` : ""}
-          ${flags}
-        </div>
-        ${a.summary ? `<p class="summary">${esc(a.summary)}</p>` : ""}
-      </div>
-      ${payBlock(j)}
-    </div>
-    ${(a.why?.length || a.concerns?.length) ? `<div class="detail">
-      <div class="col pros"><h4>Why it fits</h4><ul>${li(a.why)}</ul></div>
-      <div class="col cons"><h4>Concerns</h4><ul>${li(a.concerns)}</ul></div>
-    </div>` : ""}
-    <details>
-      <summary style="padding:10px 18px">Resume, level, company &amp; history</summary>
-      <div class="more">
-        <div>
-          ${a.resume ? `<p><b>Resume:</b> ${esc(a.resume)}</p>` : ""}
-          ${a.level ? `<p><b>Level fit:</b> ${esc(a.level)}</p>` : ""}
-          <p><b>History</b></p><ul class="history">${hist}</ul>
-        </div>
-        <div>
-          ${c.what ? `<p><b>What they do:</b> ${esc(c.what)}</p>` : ""}
-          ${c.size ? `<p><b>Size / stage:</b> ${esc(c.size)}</p>` : ""}
-          ${c.funding ? `<p><b>Funding:</b> ${esc(c.funding)}</p>` : ""}
-          ${c.sentiment ? `<p><b>Employees say:</b> ${esc(c.sentiment)}</p>` : ""}
-          ${c.news ? `<p><b>Recent:</b> ${esc(c.news)}</p>` : ""}
-          ${c.website ? `<p><a href="${esc(c.website)}" target="_blank" rel="noopener">${esc(c.website.replace(/^https?:\/\//, ""))}</a></p>` : ""}
-          ${c.data_notes ? `<p class="sub">${esc(c.data_notes)}</p>` : ""}
-          ${allGaps.length ? `<p><b>Still to research</b> (the next review fills these in)</p><ul class="gaps">${allGaps.map(g =>
-            `<li>${esc(gapLabel(g))}${g.why ? ` <span>· ${esc(g.why)}</span>` : ""}</li>`).join("")}</ul>` : ""}
-        </div>
-      </div>
-    </details>
-    <div class="foot">
-      <div class="links">${srcs} ${j.status !== "new" ? `<span class="status-pill">${esc(j.status)}</span>` : ""}</div>
-      <div class="actions">
-        ${profile ? `<button class="btn" data-co="${esc(j.company_key)}">Company one-pager</button>` : ""}
-        ${act("interested", "Interested", true)}${act("applied", "Mark applied")}${act("dismissed", "Dismiss")}${j.status !== "new" ? act("new", "Reset") : ""}
-      </div>
-    </div>
-  </article>`;
-}
-
-document.getElementById("sort").onchange = e => { state.sort = e.target.value; store.set("sort", state.sort); render(); };
-document.getElementById("q").oninput = e => { state.q = e.target.value; render(); };
-document.querySelectorAll(".toggle").forEach(b => b.onclick = () => {
-  state.filters[b.dataset.f] = !state.filters[b.dataset.f]; store.set("filters", state.filters); render(); });
-init();
-</script>
+<dialog class="sheet" id="sheet"></dialog>
+<script src="/report.js"></script>
 </body>
 </html>

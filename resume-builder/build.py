@@ -191,20 +191,29 @@ def main(argv=None) -> int:
 
     data = json.loads(args.data.read_text(encoding="utf-8"))
     names = args.style or styles()
-    args.out.mkdir(parents=True, exist_ok=True)
-    browser = None if args.no_pdf else find_browser()
-    if not args.no_pdf and not browser:
+    built = build(data, args.out, names, pdf=not args.no_pdf)
+    if not args.no_pdf and not built["pdf"]:
         print("No Chrome or Edge found: writing HTML only (open it and Print > Save as PDF).")
     for n in names:
-        page = args.out / f"{n}.html"
-        page.write_text(render(data, n), encoding="utf-8")
-        if browser:
-            to_pdf(page, args.out / f"{n}.pdf", browser)
-        print(f"{n}: {page}" + (" + .pdf" if browser else ""))
+        print(f"{n}: {args.out / (n + '.html')}" + (" + .pdf" if built["pdf"] else ""))
     if len(names) > 1:
-        gallery(args.out, names, data.get("basics", {}).get("name", ""))
         print(f"gallery: {args.out / 'index.html'}")
     return 0
+
+
+def build(data: dict, out: Path, names: list[str], pdf: bool = True) -> dict:
+    """Render `data` in each style into `out` (HTML, plus PDF when a browser is found).
+    Several styles also get a gallery page. Returns {"pdf": bool}."""
+    out.mkdir(parents=True, exist_ok=True)
+    browser = find_browser() if pdf else None
+    for n in names:
+        page = out / f"{n}.html"
+        page.write_text(render(data, n), encoding="utf-8")
+        if browser:
+            to_pdf(page, out / f"{n}.pdf", browser)
+    if len(names) > 1:
+        gallery(out, names, data.get("basics", {}).get("name", ""))
+    return {"pdf": bool(browser)}
 
 
 if __name__ == "__main__":

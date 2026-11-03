@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     flags           TEXT,            -- JSON list of red/yellow flags
     gaps            TEXT             -- JSON list of {what, why}: research still to do; empty = complete
 );
+CREATE TABLE IF NOT EXISTS documents (
+    id      INTEGER PRIMARY KEY,
+    job_id  INTEGER NOT NULL REFERENCES jobs(id),
+    kind    TEXT NOT NULL,            -- resume / cover_letter
+    path    TEXT NOT NULL,            -- folder under the kit, e.g. resumes/25-acme-group-pm
+    status  TEXT NOT NULL DEFAULT 'draft',   -- draft / final / sent
+    summary TEXT,                     -- one or two lines: what was tailored
+    created TEXT NOT NULL,
+    updated TEXT NOT NULL,
+    UNIQUE(job_id, kind)
+);
 CREATE TABLE IF NOT EXISTS companies (
     key     TEXT PRIMARY KEY,         -- normalize_company(name)
     name    TEXT NOT NULL,
@@ -297,13 +308,14 @@ class Store:
 
     def review_queue(self, limit: int = 40, description_chars: int = 2500) -> dict:
         """Listings seen but not yet reviewed (no saved/skipped decision), newest first,
-        with whatever details the collector kept."""
-        total = self.db.execute("SELECT COUNT(*) FROM seen WHERE decision IS NULL").fetchone()[0]
+        with whatever details the collector kept. Listings the person rescued from the
+        filtered-out list come first, with their note in `reason`."""
+        total = self.db.execute("SELECT COUNT(*) FROM seen WHERE decision IS NULL OR decision='rescue'").fetchone()[0]
         rows = self.db.execute(
-            "SELECT s.source, s.source_id, s.title, s.company, s.first_seen, s.days_seen, "
+            "SELECT s.source, s.source_id, s.title, s.company, s.first_seen, s.days_seen, s.decision, s.reason, "
             "l.location, l.workplace, l.posted_on, l.salary_text, l.applicants, l.url, l.query, l.description "
-            "FROM seen s LEFT JOIN listings l USING (source, source_id) WHERE s.decision IS NULL "
-            "ORDER BY s.first_seen DESC, l.posted_on DESC LIMIT ?", (int(limit),)).fetchall()
+            "FROM seen s LEFT JOIN listings l USING (source, source_id) WHERE s.decision IS NULL OR s.decision='rescue' "
+            "ORDER BY s.decision IS NULL, s.first_seen DESC, l.posted_on DESC LIMIT ?", (int(limit),)).fetchall()
         items = []
         for r in rows:
             d = {k: v for k, v in dict(r).items() if v is not None}
@@ -357,6 +369,82 @@ class Store:
     def add_note(self, job_id: int, note: str) -> None:
         self._event(job_id, "note", note)
         self.db.commit()
+
+    # ---- tailored documents (resume and cover letter drafts) ----
+
+    def save_document(self, job_id: int, kind: str, path: str, summary: str = "", status: str = "draft") -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        existed = self.db.execute("SELECT 1 FROM documents WHERE job_id=? AND kind=?", (job_id, kind)).fetchone()
+        self.db.execute(
+            "INSERT INTO documents (job_id, kind, path, status, summary, created, updated) VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(job_id, kind) DO UPDATE SET path=excluded.path, status=excluded.status, "
+            "summary=excluded.summary, updated=excluded.updated",
+            (job_id, kind, path, status, summary, now, now))
+        label = kind.replace("_", " ")
+        self._event(job_id, "document", f"{label} {'revised' if existed else 'drafted'}: {path}")
+        self.db.commit()
+        self.log("document", f"job {job_id} {label} {'revised' if existed else 'drafted'}", job_id=job_id, path=path)
+
+    def set_document_status(self, job_id: int, kind: str, status: str) -> None:
+        if status not in ("draft", "final", "sent"):
+            raise ValueError(f"unknown document status {status!r}")
+        n = self.db.execute("UPDATE documents SET status=?, updated=? WHERE job_id=? AND kind=?",
+                            (status, datetime.now().isoformat(timespec="seconds"), job_id, kind)).rowcount
+        if not n:
+            raise KeyError(f"job {job_id} has no {kind}")
+        self._event(job_id, "document", f"{kind.replace('_', ' ')} marked {status}")
+        self.db.commit()
+
+    def documents(self) -> list[dict]:
+        return [dict(r) for r in self.db.execute(
+            "SELECT d.*, j.title, j.company, j.status AS job_status FROM documents d JOIN jobs j ON j.id = d.job_id "
+            "ORDER BY d.updated DESC")]
+
+    def drafts_pending(self, kind: str = "resume") -> list[dict]:
+        """Jobs the person marked interested (or applying) that don't have this draft yet, oldest mark first."""
+        rows = self.db.execute(
+            "SELECT j.id FROM jobs j WHERE j.status IN ('interested', 'applying') AND NOT EXISTS "
+            "(SELECT 1 FROM documents d WHERE d.job_id = j.id AND d.kind = ?) ORDER BY j.status_changed", (kind,))
+        ids = [r["id"] for r in rows]
+        return [j for j in self.jobs() if j["id"] in ids]
+
+    # ---- audit: everything the collector saw, and what happened to it ----
+
+    def audit(self, days: int = 7, decision: str | None = None, limit: int = 300) -> dict:
+        """Listings first seen in the last `days`, with their fate: saved (and the job), skipped
+        (and why), rescued, or waiting for review. Plus per-day counts for the funnel."""
+        since = (date.today() - timedelta(days=int(days) - 1)).isoformat()
+        where, args = "s.first_seen >= ?", [since]
+        if decision == "waiting":
+            where += " AND s.decision IS NULL"
+        elif decision:
+            where += " AND s.decision = ?"
+            args.append(decision)
+        rows = self.db.execute(
+            f"SELECT s.source, s.source_id, s.title, s.company, s.first_seen, s.last_seen, s.days_seen, "
+            f"s.decision, s.reason, l.location, l.workplace, l.salary_text, l.posted_on, l.url, l.query, "
+            f"(SELECT job_id FROM sources x WHERE x.source = s.source AND x.source_id = s.source_id) AS job_id "
+            f"FROM seen s LEFT JOIN listings l USING (source, source_id) WHERE {where} "
+            f"ORDER BY s.first_seen DESC, s.company LIMIT ?", (*args, int(limit))).fetchall()
+        per_day = self.db.execute(
+            "SELECT first_seen AS day, COUNT(*) AS seen, SUM(decision='saved') AS saved, "
+            "SUM(decision='skipped') AS skipped, SUM(decision='rescue') AS rescued, SUM(decision IS NULL) AS waiting "
+            "FROM seen WHERE first_seen >= ? GROUP BY first_seen ORDER BY first_seen DESC", (since,)).fetchall()
+        return {"since": since, "per_day": [dict(r) for r in per_day], "items": [dict(r) for r in rows]}
+
+    def rescue(self, source: str, source_id: str, note: str = "") -> None:
+        """The person wants a filtered-out listing looked at again. The next review scores it
+        and treats the note as tuning feedback."""
+        row = self.db.execute("SELECT decision, reason, title, company FROM seen WHERE source=? AND source_id=?",
+                              (source, source_id)).fetchone()
+        if row is None:
+            raise KeyError(f"{source}:{source_id} was never seen")
+        was = f"was {row['decision']}" + (f": {row['reason']}" if row["reason"] else "") if row["decision"] else "was waiting"
+        reason = f"rescued by you ({was})" + (f". Your note: {note}" if note else "")
+        self.db.execute("UPDATE seen SET decision='rescue', reason=? WHERE source=? AND source_id=?",
+                        (reason, source, source_id))
+        self.db.commit()
+        self.log("rescue", f"{row['title']} @ {row['company']}", note=note)
 
     def save_company(self, name: str, profile: dict) -> str:
         """Insert or replace a company's one-pager. Returns its key."""
@@ -413,6 +501,8 @@ class Store:
             for f in ("analysis", "company_info", "flags", "gaps"):
                 d[f] = json.loads(d[f]) if d[f] else None
             d["company_key"] = normalize_company(d["company"])
+            d["documents"] = [dict(x) for x in self.db.execute(
+                "SELECT kind, path, status, summary, created, updated FROM documents WHERE job_id=?", (r["id"],))]
             d["sources"] = [dict(s) for s in self.db.execute(
                 "SELECT source, source_id, url, posted_on FROM sources WHERE job_id=?", (r["id"],))]
             d["events"] = [dict(e) for e in self.db.execute(

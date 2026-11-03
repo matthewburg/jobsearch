@@ -11,9 +11,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 for sub in ("store", "guard", "collectors"):
     sys.path.insert(0, str(ROOT / sub))
+from datetime import datetime  # noqa: E402
+
 from ats import title_matches  # noqa: E402
 from db import Store  # noqa: E402
 from runlog import null_log  # noqa: E402
+from setup_state import next_cron  # noqa: E402
 
 
 def card(sid, title="Director of Product", company="Acme", source="linkedin"):
@@ -116,6 +119,67 @@ class CompletenessTests(unittest.TestCase):
         self.assertEqual(self.s.incomplete(), [])
         self.s.set_status(jid, "interested")
         self.assertEqual(len(self.s.incomplete()), 1)
+
+
+class DraftsAndAuditTests(unittest.TestCase):
+    def setUp(self):
+        self.s = Store(Path(tempfile.mkdtemp()) / "jobs.db", log=null_log)
+
+    def test_interested_jobs_without_a_resume_are_pending(self):
+        a = self.s.upsert({"title": "PM", "company": "Acme"})[0]
+        b = self.s.upsert({"title": "PM", "company": "Globex"})[0]
+        self.s.upsert({"title": "PM", "company": "Initech"})  # never marked
+        self.s.set_status(a, "interested")
+        self.s.set_status(b, "applying")
+        self.assertEqual([j["company"] for j in self.s.drafts_pending()], ["Acme", "Globex"])
+        self.s.save_document(a, "resume", "resumes/1-acme-pm", "leads with platform")
+        self.assertEqual([j["company"] for j in self.s.drafts_pending()], ["Globex"])
+        job = next(j for j in self.s.jobs() if j["id"] == a)
+        self.assertEqual(job["documents"][0]["summary"], "leads with platform")
+        self.s.save_document(a, "resume", "resumes/1-acme-pm", "revised")  # a revision updates, never duplicates
+        self.assertEqual(len(self.s.documents()), 1)
+        self.s.set_document_status(a, "resume", "final")
+        self.assertEqual(self.s.documents()[0]["status"], "final")
+
+    def test_audit_shows_fates_and_rescue_requeues(self):
+        self.s.check_seen([card("1"), card("2", title="Payroll Clerk"), card("3", title="Group PM")])
+        self.s.upsert({"title": "Director of Product", "company": "Acme",
+                       "sources": [{"source": "linkedin", "source_id": "1"}]})
+        self.s.mark_seen("linkedin", "2", "skipped", "wrong field")
+        a = self.s.audit(7)
+        fates = {i["source_id"]: (i["decision"], i["job_id"]) for i in a["items"]}
+        self.assertEqual(fates["1"][0], "saved")
+        self.assertIsNotNone(fates["1"][1])
+        self.assertEqual(fates["2"], ("skipped", None))
+        self.assertEqual(a["per_day"][0]["seen"], 3)
+        self.assertEqual([i["source_id"] for i in self.s.audit(7, "skipped")["items"]], ["2"])
+        self.assertEqual([i["source_id"] for i in self.s.audit(7, "waiting")["items"]], ["3"])
+
+        self.s.rescue("linkedin", "2", "payroll product roles are fine")
+        q = self.s.review_queue()
+        self.assertEqual(q["items"][0]["source_id"], "2")  # rescues come first
+        self.assertIn("payroll product roles are fine", q["items"][0]["reason"])
+        self.assertIn("wrong field", q["items"][0]["reason"])
+        self.s.mark_seen("linkedin", "2", "skipped", "still wrong")  # reviewing it again settles it
+        self.assertNotIn("2", [i["source_id"] for i in self.s.review_queue()["items"]])
+
+
+class CronTests(unittest.TestCase):
+    AT = datetime(2026, 11, 2, 13, 30)  # a Monday
+
+    def test_daily_and_stepped(self):
+        self.assertEqual(next_cron("0 12 * * *", self.AT), datetime(2026, 11, 3, 12, 0))
+        self.assertEqual(next_cron("0 8-20/2 * * *", self.AT), datetime(2026, 11, 2, 14, 0))
+        self.assertEqual(next_cron("0 8-20/2 * * *", datetime(2026, 11, 2, 20, 0)), datetime(2026, 11, 3, 8, 0))
+
+    def test_weekdays_and_lists(self):
+        self.assertEqual(next_cron("15 9 * * 1-5", datetime(2026, 11, 6, 10, 0)), datetime(2026, 11, 9, 9, 15))  # Fri -> Mon
+        self.assertEqual(next_cron("0,30 * * * *", self.AT), datetime(2026, 11, 2, 14, 0))
+
+    def test_bad_expressions(self):
+        for bad in ("* * *", "61 * * * *", "0 25 * * *"):
+            with self.assertRaises(ValueError):
+                next_cron(bad, self.AT)
 
 
 class TitleNetTests(unittest.TestCase):

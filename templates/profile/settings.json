@@ -8,6 +8,8 @@
   },
   "_stale_days": "A listing this many days old or older is flagged as stale (a ghost-listing signal).",
   "stale_days": 45,
+  "_resume_style": "The style tailored resume drafts use: modern, executive, classic, or builder (see resume-builder/).",
+  "resume_style": "modern",
   "_test_mode": "Keeps LinkedIn to 6 requests a day. Set to false once a few days of runs look healthy.",
   "test_mode": true,
   "_private_terms": "Words that must never appear in a shared copy of the kit (your last name, employers, email). package.py refuses to build a copy containing them.",
