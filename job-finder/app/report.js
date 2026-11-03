@@ -23,6 +23,9 @@ function soon(iso) {  // "today 2:00 PM", "tomorrow 6:00 AM", "Thu 12:09 PM"
 const linkOut = (url, label, cls = "src") => url
   ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>` : "";
 const ask = text => `<button class="ask" data-ask="${esc(text)}" title="Copy, then paste into Claude">“${esc(text)}”</button>`;
+// The note at the top of each page Claude maintains: what Claude does here, and how to ask for a change.
+const managed = (title, body, example) => `<div class="managed"><img src="/favicon.svg" width="22" height="22" alt="">
+  <div><p><b>${title}</b> ${body}</p>${example ? `<p>${ask(example)}</p>` : ""}</div></div>`;
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-ask]");
   if (!b) return;
@@ -566,11 +569,11 @@ async function renderDocuments() {
   };
   const resumes = docs.documents.filter(d => d.kind === "resume");
   v.innerHTML = `
-    <div class="panel"><div class="panel-head"><h2>How drafts work</h2></div><div class="body small">
-      <p>Mark a job <b>Interested</b> and the resume-drafts task tailors your base resume to it${s ? ` (next run ${soon(s.next)})` : " (not scheduled yet: see Setup)"}.
-      Each draft comes with notes on what was emphasized, what was cut, and gaps to address. Drafts are a starting point: to change one,
-      tell Claude what you want in any session, for example ${ask("Revise my resume draft for <company>: lead with platform work")}.
-      Drafts never go anywhere by themselves. You review, download the PDF, and apply yourself.</p></div></div>
+    ${managed("Claude manages your resumes.",
+      `Mark a job <b>Interested</b> and Claude drafts a resume tailored to it${s ? ` (next run ${soon(s.next)})` : " (not scheduled yet: see Setup)"},
+      with notes on what it emphasized, what it cut, and gaps to address. To change a draft or your base resume, tell Claude what you want.
+      Drafts never go anywhere by themselves: you review, download the PDF, and apply yourself.`,
+      "Revise my resume draft for <company>: lead with platform work")}
     <div class="panel"><div class="panel-head"><h2>Base resume</h2><span class="small muted">Source of truth · style: ${esc(docs.style)}</span></div>
       <div class="doc"><div><div class="t">profile/resume.json</div><div class="s">Every tailored draft starts here. Decisions about wording and framing live in resume-notes.md.</div></div>
       <div class="btns"><a class="btn primary" href="/files/${esc(docs.base.html)}" target="_blank" rel="noopener">View</a>
@@ -595,7 +598,11 @@ async function renderProfile() {
   const groups = {};
   files.forEach(f => (groups[f.group] ||= []).push(f));
   const order = Object.keys(groups).sort((a, b) => (a === "profile" ? -1 : b === "profile" ? 1 : a.localeCompare(b)));
-  v.innerHTML = `<div class="files">
+  v.innerHTML = `${managed("Claude keeps your profile.",
+      `These files are the experience bank every score and resume draws on. You can edit them here, but it's usually easier to tell Claude
+      what changed: it updates the right files and records decisions in resume-notes.md so future resumes follow them.`,
+      "Add this to my profile: …")}
+    <div class="files">
     <nav class="panel filelist">${order.map(g => `<h4>${esc(g)}</h4>${groups[g].map(f =>
       `<button data-file="${esc(f.path)}" aria-current="${openFile?.path === f.path}">${esc(f.name)}</button>`).join("")}`).join("")}</nav>
     <div class="panel viewer">${openFile ? `
@@ -632,6 +639,9 @@ async function renderActivity() {
   const fate = i => { const d = i.decision || "waiting"; return `<span class="fate ${d}">${{ saved: "kept", skipped: "filtered out", rescue: "rescued", waiting: "waiting" }[d] || d}</span>`; };
   const opt = (val, label, cur) => `<option value="${val}"${val == cur ? " selected" : ""}>${label}</option>`;
   v.innerHTML = `
+    ${managed("This is Claude's record of its decisions.",
+      `Every listing the searches found, and whether Claude's review kept it or filtered it out, with the reason. To change what gets
+      kept, rescue a listing below or tell Claude.`, "Stop filtering out product operations roles")}
     <div class="panel"><div class="panel-head"><h2>What the system looked at</h2><span class="small muted">last ${audit.days} days · new listings by the day they first appeared</span></div>
       <div class="body scroll"><table class="grid"><thead><tr><th>Day</th><th class="n">Found</th><th class="n">Kept</th><th class="n">Filtered out</th><th class="n">Rescued</th><th class="n">Waiting</th></tr></thead>
       <tbody>${auditData.per_day.map(d => `<tr><td>${esc(d.day)}</td><td class="n">${d.seen}</td><td class="n">${d.saved || 0}</td><td class="n">${d.skipped || 0}</td><td class="n">${d.rescued || 0}</td><td class="n">${d.waiting || 0}</td></tr>`).join("")}
@@ -677,13 +687,14 @@ function renderSetup() {
       <div class="meta">${[s.state === "check" ? "Marked done, but the check failed: " + s.detail : s.detail, s.note,
         s.at && s.state === "done" ? "checked off " + when(s.at) : ""].filter(Boolean).map(esc).join(" · ")}</div></div></li>`;
   $("view-setup").innerHTML = `
+    ${managed("Claude does the setup with you.",
+      `Open Claude (the desktop app's Code tab, or Claude Code) in this folder. Claude follows <code>SETUP.md</code>, asks you questions,
+      and checks off each step below only after it has verified it. Setup can take a few sessions; Claude picks up where you left off.`,
+      "Set this up for me.")}
     <div class="panel"><div class="panel-head"><h2>${st.complete ? "Setup is complete" : st.ready ? "Ready to go, with a few optional steps left" : "Let's get you set up"}</h2>
       <span class="small muted">${done} of ${st.steps.length} done</span></div><div class="body">
-      <p>This page is your window into a job search system that runs on your computer with Claude. Every day it finds new postings,
-      researches and scores them against your background, and drafts tailored resumes for the jobs you mark Interested. It never applies or contacts anyone for you.</p>
-      <p><b>Claude does the setup with you.</b> Open Claude (the desktop app's Code tab, or Claude Code) in this folder and say
-      ${ask("Set this up for me.")} Claude follows <code>SETUP.md</code>, asks you questions, and checks off each step below only after it has verified it.
-      Setup can take a few sessions; Claude picks up where you left off.</p></div></div>
+      <p style="margin:0">This app is your window into a job search system that runs on your computer with Claude. Every day it finds new postings,
+      researches and scores them against your background, and drafts tailored resumes for the jobs you mark Interested. It never applies or contacts anyone for you.</p></div></div>
     <div class="panel"><ul class="steps">${st.steps.map((s, n) => step(s, n + 1)).join("")}</ul></div>
     <div class="panel"><div class="panel-head"><h2>Schedules</h2></div><div class="body scroll">
       ${st.schedules.length ? `<table class="grid"><thead><tr><th>What</th><th>Runs</th><th>Next</th><th>Notes</th></tr></thead><tbody>

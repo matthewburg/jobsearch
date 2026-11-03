@@ -30,7 +30,8 @@ from settings import load as load_settings  # noqa: E402
 
 HOST, PORT = "127.0.0.1", 8765
 log = RunLog("report-app")
-STATIC = {"/": "report.html", "/index.html": "report.html", "/report.css": "report.css", "/report.js": "report.js"}
+STATIC = {"/": "report.html", "/index.html": "report.html", "/report.css": "report.css", "/report.js": "report.js",
+          "/favicon.svg": "favicon.svg"}
 EDITABLE = (".md", ".json")
 
 
@@ -80,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path in STATIC:
                 name = STATIC[url.path]
-                ctype = {"html": "text/html", "css": "text/css", "js": "text/javascript"}[name.rsplit(".", 1)[1]]
+                ctype = {"html": "text/html", "css": "text/css", "js": "text/javascript", "svg": "image/svg+xml"}[name.rsplit(".", 1)[1]]
                 return self._send(200, (ROOT / name).read_bytes(), ctype)
             store = Store(log=log)
             if url.path == "/api/jobs":
