@@ -47,7 +47,7 @@ For sites with no connector and no API: **LinkedIn, Wellfound, Built In, Glassdo
 
 **Options, roughly from least to most build:**
 1. **JobSpy** (`python-jobspy`, open source, ~4k★): one `scrape_jobs()` call across LinkedIn, Indeed, Glassdoor, ZipRecruiter, and Google Jobs → a normalized table. MCP wrappers exist (`jobspy-mcp`). It uses plain HTTP, not a browser, so LinkedIn throttles it quickly. A quick win to evaluate before building anything.
-2. **Microsoft Playwright MCP** (`npx @playwright/mcp`): an off-the-shelf local browser that Claude drives. Supports `--headless` and a **persistent profile** (`--user-data-dir`), so sites see Matthew's real logged-in session. Good for ad-hoc browsing. Too chatty and token-heavy for bulk collection.
+2. **Microsoft Playwright MCP** (`npx @playwright/mcp`): an off-the-shelf local browser that Claude drives. Supports `--headless` and a **persistent profile** (`--user-data-dir`), so sites see your real logged-in session. Good for ad-hoc browsing. Too chatty and token-heavy for bulk collection.
 3. **Our own small "fetch page" service plus an MCP** (the preferred design): a local Playwright worker with one persistent browser profile, exposed as MCP tools like `fetch_page(url) → clean text + links` and `search_site(site, query) → postings`. It returns *extracted text*, not screenshots, so it's fast and cheap, and the same worker powers the scheduled collectors. A general local scraping service could share the same worker.
 4. *(Avoid)* Claude in Chrome / computer use for collection: slow and cumbersome. Keep it for one-off manual tasks.
 
