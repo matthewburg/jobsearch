@@ -4,6 +4,8 @@ The corrections and choices you make while reviewing resumes, **with the reasoni
 
 Each entry has: **the decision**, **why** (your reason, plus Claude's view if it agrees, disagrees, or adds something), and **how to apply** it. Title framing and the "never mention" list live in `targets.md`.
 
+As entries pile up, keep a short **"Current rules"** list at the top that sums up everything below (later entries win). When a correction is a reusable phrase (a retired number, a tool you don't use, a claim worded too strongly), Claude also adds it to `resume-rules.json`, so `resume-builder/check.py` flags it in every draft, old or new.
+
 ---
 
 ## Example: how to name your old team (date)

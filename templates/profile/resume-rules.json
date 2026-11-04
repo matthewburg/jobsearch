@@ -1,0 +1,7 @@
+{
+  "_about": "Phrasings you corrected once that must not come back. resume-builder/check.py tests every resume against these (on every build, and when Claude saves a draft). Each rule: a case-insensitive regex matched within one entry (summary, a job, a project, skills), why it's wrong, and what to write instead. Add \"in\" (a regex on the entry's label, like \"Senior Product Manager\") to apply a rule to one role only. The reasoning behind each lives in resume-notes.md. Claude adds a rule here whenever a correction is a phrase that could be reused. Delete the example rule once you have your own.",
+  "max_pages": 2,
+  "rules": [
+    {"pattern": "Project Atlas", "why": "Example: an internal codename nobody outside the company would recognize.", "fix": "'the payments platform team'."}
+  ]
+}

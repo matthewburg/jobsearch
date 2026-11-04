@@ -140,6 +140,17 @@ class DraftsAndAuditTests(unittest.TestCase):
         self.assertEqual(len(self.s.documents()), 1)
         self.s.set_document_status(a, "resume", "final")
         self.assertEqual(self.s.documents()[0]["status"], "final")
+        self.s.set_status(a, "applied")  # applying archives what went out with it
+        self.assertEqual(self.s.documents()[0]["status"], "sent")
+
+    def test_apply_info_saved_and_missing_one_is_a_gap(self):
+        a = self.s.upsert({"title": "PM", "company": "Acme"})[0]
+        self.s.set_status(a, "interested")
+        self.assertIn("apply_details", [g["what"] for g in self.s.incomplete()[0]["gaps"]])
+        self.s.set_apply_info(a, {"cover_letter": "optional", "prepare": ["Salary expectations (required)"], "notes": []})
+        job = next(j for j in self.s.jobs() if j["id"] == a)
+        self.assertEqual(job["apply_info"]["cover_letter"], "optional")
+        self.assertFalse(any(g["what"] == "apply_details" for i in self.s.incomplete() for g in i["gaps"]))
 
     def test_audit_shows_fates_and_rescue_requeues(self):
         self.s.check_seen([card("1"), card("2", title="Payroll Clerk"), card("3", title="Group PM")])

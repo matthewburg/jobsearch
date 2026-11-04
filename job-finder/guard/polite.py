@@ -93,7 +93,7 @@ SITES: dict[str, SitePolicy] = {
     ),
     "greenhouse": SitePolicy(
         hosts=("boards-api.greenhouse.io",),
-        paths=(r"^/v1/boards/[\w-]+/jobs$",),
+        paths=(r"^/v1/boards/[\w-]+/jobs$", r"^/v1/boards/[\w-]+/jobs/\d+$"),  # board; one posting (?questions=true)
         wait_s=(5, 20),
         per_hour=60,
         per_day=200,
@@ -101,7 +101,7 @@ SITES: dict[str, SitePolicy] = {
     ),
     "lever": SitePolicy(
         hosts=("api.lever.co",),
-        paths=(r"^/v0/postings/[\w-]+$",),
+        paths=(r"^/v0/postings/[\w-]+$", r"^/v0/postings/[\w-]+/[\w-]+$"),  # board; one posting
         wait_s=(5, 20),
         per_hour=60,
         per_day=200,

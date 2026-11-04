@@ -213,6 +213,35 @@ a { color: var(--accent); }
 .docline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 18px; border-top: 1px solid var(--line);
   background: var(--good-soft); font-size: 13px; }
 .docline.queued { background: var(--panel-2); color: var(--muted); }
+.docline.draft { background: var(--warn-soft); box-shadow: inset 4px 0 0 var(--warn); }
+.docline.final { background: var(--good-soft); box-shadow: inset 4px 0 0 var(--good); }
+.docline.sent { background: var(--panel-2); box-shadow: inset 4px 0 0 var(--none); }
+/* draft / final / sent: different color AND different words, never color alone */
+.doc-badge { display: inline-block; font-size: 12px; font-weight: 650; line-height: 1.5; border-radius: 999px; padding: 1px 10px;
+  white-space: nowrap; vertical-align: 1px; }
+.doc-badge.draft { background: var(--panel); color: var(--warn); border: 1.5px dashed var(--warn); }
+.doc-badge.final { background: var(--good); color: var(--panel); border: 1.5px solid var(--good); }
+.doc-badge.sent { background: transparent; color: var(--muted); border: 1.5px solid var(--line); }
+.doc.draft { box-shadow: inset 4px 0 0 var(--warn); }
+.doc.final { box-shadow: inset 4px 0 0 var(--good); }
+.doc .t .doc-badge { margin-right: 6px; }
+details.archive > summary { cursor: pointer; list-style: none; }
+details.archive > summary::-webkit-details-marker { display: none; }
+details.archive:not([open]) > summary { border-bottom: 0; }
+/* how to apply */
+.applyline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 18px; border-top: 1px solid var(--line);
+  font-size: 13px; background: var(--panel-2); }
+.applyline.pending { color: var(--muted); }
+.applyline .ap { border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 600; }
+.ap.bad { background: var(--bad-soft); color: var(--bad); }
+.ap.warn { background: var(--warn-soft); color: var(--warn); }
+.ap.good { background: var(--good-soft); color: var(--good); }
+.ap.none { background: var(--none-soft); color: var(--muted); }
+.ap-more { flex-basis: 100%; }
+.ap-more summary { color: var(--accent); cursor: pointer; }
+.ap-more p { margin: 8px 0 2px; }
+.ap-more ul { margin: 0; padding-left: 18px; }
+.ap-notes { color: var(--warn); }
 
 /* profile files */
 .files { display: grid; grid-template-columns: 240px 1fr; gap: 12px; align-items: start; }

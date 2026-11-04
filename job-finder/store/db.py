@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     analysis        TEXT,            -- JSON: Claude's review (score, fit, notes, ...)
     company_info    TEXT,            -- JSON: what they do, size, funding, sentiment
     flags           TEXT,            -- JSON list of red/yellow flags
-    gaps            TEXT             -- JSON list of {what, why}: research still to do; empty = complete
+    gaps            TEXT,            -- JSON list of {what, why}: research still to do; empty = complete
+    apply_info      TEXT             -- JSON: how to apply (cover letter, answers to prepare, notes); collectors/apply.py
 );
 CREATE TABLE IF NOT EXISTS documents (
     id      INTEGER PRIMARY KEY,
@@ -184,6 +185,8 @@ class Store:
         cols = {r["name"] for r in self.db.execute("PRAGMA table_info(jobs)")}
         if "gaps" not in cols:  # databases created before gaps existed
             self.db.execute("ALTER TABLE jobs ADD COLUMN gaps TEXT")
+        if "apply_info" not in cols:  # databases created before apply details existed
+            self.db.execute("ALTER TABLE jobs ADD COLUMN apply_info TEXT")
         self.log = log or RunLog("store")
 
     # ---- writes ----
@@ -209,11 +212,11 @@ class Store:
         if row is None:
             cur = self.db.execute(
                 f"INSERT INTO jobs (dedupe_key, title, company, first_seen, last_seen, posted_on, "
-                f"analysis, company_info, flags, gaps, {', '.join(fields)}) "
-                f"VALUES (?,?,?,?,?,?,?,?,?,?,{','.join('?' * len(fields))})",
+                f"analysis, company_info, flags, gaps, apply_info, {', '.join(fields)}) "
+                f"VALUES (?,?,?,?,?,?,?,?,?,?,?,{','.join('?' * len(fields))})",
                 (key, job["title"], job["company"], now, now, job.get("posted_on"),
                  _j(job.get("analysis")), _j(job.get("company_info")), _j(job.get("flags")),
-                 _j(job.get("gaps")), *[job.get(f) for f in fields]))
+                 _j(job.get("gaps")), _j(job.get("apply_info")), *[job.get(f) for f in fields]))
             job_id, is_new = cur.lastrowid, True
             self._event(job_id, "found", f"{job['title']} @ {job['company']}")
             self.log("new", f"{job['title']} @ {job['company']}", job_id=job_id)
@@ -226,7 +229,7 @@ class Store:
             # keep the EARLIEST posting date any source reports (ghost-listing signal)
             if job.get("posted_on") and (not row["posted_on"] or job["posted_on"] < row["posted_on"]):
                 updates["posted_on"] = job["posted_on"]
-            for f in ("analysis", "company_info", "flags", "gaps"):
+            for f in ("analysis", "company_info", "flags", "gaps", "apply_info"):
                 if job.get(f) is not None:
                     updates[f] = _j(job[f])
             updates["last_seen"] = now
@@ -398,8 +401,21 @@ class Store:
         now = datetime.now().isoformat(timespec="seconds")
         self.db.execute("UPDATE jobs SET status=?, status_changed=? WHERE id=?", (status, now, job_id))
         self._event(job_id, "status", f"{status}" + (f": {note}" if note else ""))
+        if status == "applied":  # the drafts on file are what went out with the application
+            sent = self.db.execute("UPDATE documents SET status='sent', updated=? WHERE job_id=? AND status!='sent'",
+                                   (now, job_id)).rowcount
+            if sent:
+                self._event(job_id, "document", "documents marked sent with the application")
         self.db.commit()
         self.log("status", f"job {job_id} -> {status}", job_id=job_id, note=note)
+
+    def set_apply_info(self, job_id: int, info: dict) -> None:
+        """How to apply (collectors/apply.py, or notes Claude adds after reading the form)."""
+        n = self.db.execute("UPDATE jobs SET apply_info=? WHERE id=?", (_j(info), job_id)).rowcount
+        if not n:
+            raise KeyError(f"no job {job_id}")
+        self._event(job_id, "apply", f"apply details checked: cover letter {info.get('cover_letter', 'unknown')}")
+        self.db.commit()
 
     def add_note(self, job_id: int, note: str) -> None:
         self._event(job_id, "note", note)
@@ -519,6 +535,8 @@ class Store:
                     gaps.append({"what": "company_profile", "why": "qualifies for a one-pager; none written yet"})
                 elif p["updated"][:10] < stale:
                     gaps.append({"what": "company_profile", "why": f"one-pager is from {p['updated'][:10]}; refresh it"})
+            if j["status"] in MARKED and j["status"] not in ("applied", "interviewing", "offer") and not j.get("apply_info")                     and not any(g.get("what") == "apply_details" for g in gaps):
+                gaps.append({"what": "apply_details", "why": "you marked this job; run apply_check"})
             if gaps:
                 out.append({"id": j["id"], "title": j["title"], "company": j["company"], "status": j["status"],
                             "score": (j["analysis"] or {}).get("score"), "gaps": gaps,
@@ -533,7 +551,7 @@ class Store:
         out = []
         for r in self.db.execute("SELECT * FROM jobs ORDER BY id"):
             d = dict(r)
-            for f in ("analysis", "company_info", "flags", "gaps"):
+            for f in ("analysis", "company_info", "flags", "gaps", "apply_info"):
                 d[f] = json.loads(d[f]) if d[f] else None
             d["company_key"] = normalize_company(d["company"])
             d["documents"] = [dict(x) for x in self.db.execute(

@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 for sub in ("guard", "store", "collectors"):
     sys.path.insert(0, str(ROOT / sub))
 
+import apply as apply_details  # noqa: E402
 import ats  # noqa: E402
 import drafts  # noqa: E402
 import linkedin  # noqa: E402
@@ -116,11 +117,25 @@ TOOLS = [
                         "posted_on (YYYY-MM-DD), applicants, description, sources [{source, source_id, url, posted_on}], "
                         "analysis {score, fit, lean, summary, why[], concerns[], level, resume, ai_forward}, "
                         "company_info {what, size, funding, sentiment, news, website, data_notes}, flags [{level: red|yellow, text}], "
-                        "gaps [{what, why}]: research not done yet (description, employer_posting, salary, sentiment, news, "
+                        "apply_info (set by apply_check), gaps [{what, why}]: research not done yet (description, employer_posting, salary, sentiment, news, "
                         "company_profile), so the next review finishes it; pass [] once complete. The employer's own posting "
                         "goes in sources as {source: 'company', source_id: <its job id or url>, url}. Merging fills empty fields "
                         "and replaces a shorter description; overwrite: true replaces every field given."),
         "inputSchema": {"type": "object", "properties": {"job": {"type": "object"}}, "required": ["job"]},
+    },
+    {
+        "name": "apply_check",
+        "description": ("How to apply to a stored job, so the person knows what to have ready: whether a cover letter is "
+                        "required, optional, or not asked; the answers to prepare (salary expectations, LinkedIn, work "
+                        "authorization, custom questions); and instructions from the posting (time zone, portfolio, "
+                        "deadline). Greenhouse forms are read exactly; Lever and other sites fall back to the posting text. "
+                        "Saves the result on the job (shown on its card) and returns it. Read-only: never fills in or submits "
+                        "anything. Pass notes to add what you learned elsewhere (e.g. from reading the form in a browser). " + SLOW),
+        "inputSchema": {"type": "object", "properties": {
+            "job_id": {"type": "integer"},
+            "url": {"type": "string", "description": "Posting URL to check; defaults to the job's company posting."},
+            "notes": {"type": "array", "items": {"type": "string"}, "description": "Extra instructions to keep with it."},
+        }, "required": ["job_id"]},
     },
     {
         "name": "jobs_incomplete",
@@ -155,7 +170,9 @@ TOOLS = [
         "description": ("Write or revise a job's tailored resume draft: saves resume.json (JSON Resume, same shape as "
                         "profile/resume.json) and notes.md in resumes/<job>/, renders it in the person's resume_style "
                         "(HTML + PDF), and links it to the job in the report. notes: markdown with what was tailored and "
-                        "why, gaps against the posting, open questions, and a revision log. summary: one line for the card."),
+                        "why, gaps against the posting, open questions, and a revision log. summary: one line for the card. "
+                        "If the result has warnings (standing corrections from profile/resume-rules.json, or over the "
+                        "page limit), fix every one and save again."),
         "inputSchema": {"type": "object", "properties": {
             "job_id": {"type": "integer"}, "resume": {"type": "object"},
             "notes": {"type": "string"}, "summary": {"type": "string"}},
@@ -245,6 +262,16 @@ TOOLS = [
 ]
 
 
+def apply_url(job: dict) -> str | None:
+    """The best posting to read apply details from: the employer's own, then an ATS board, then anything."""
+    srcs = [s for s in job.get("sources", []) if s.get("url")]
+    for pick in (lambda s: s["source"] == "company", lambda s: s["source"].startswith("ats:"), lambda s: True):
+        hit = next((s["url"] for s in srcs if pick(s)), None)
+        if hit:
+            return hit
+    return None
+
+
 def call_tool(name: str, args: dict):
     if name == "guard_status":
         return guard().status()
@@ -297,6 +324,18 @@ def call_tool(name: str, args: dict):
     if name == "job_save":
         job_id, is_new = store().upsert(args["job"])
         return {"job_id": job_id, "new": is_new}
+    if name == "apply_check":
+        s = store()
+        j = next((x for x in s.jobs() if x["id"] == int(args["job_id"])), None)
+        if not j:
+            raise KeyError(f"no job {args['job_id']}")
+        url = args.get("url") or apply_url(j)
+        info = apply_details.check(guard(), url, j.get("description") or "", j.get("location")) if url else {
+            "checked": date.today().isoformat(), "cover_letter": "unknown", "resume": "unknown", "prepare": [],
+            "notes": ["No posting URL on file: find the employer's own posting first."]}
+        info["notes"] = info.get("notes", []) + list(args.get("notes") or [])
+        s.set_apply_info(j["id"], info)
+        return info
     if name == "jobs_incomplete":
         return store().incomplete(int(args.get("limit", 20)))
     if name == "company_get":

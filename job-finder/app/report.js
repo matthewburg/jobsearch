@@ -308,9 +308,18 @@ const isRemote = j => /remote/i.test(`${j.workplace} ${j.location}`);
 const isFresh = j => { const r = runs.runs.find(x => x.kind === "review"); return r && j.first_seen.slice(0, 10) >= r.started.slice(0, 10); };
 const wantsProfile = j => MARKED.includes(j.status) || (j.analysis?.score ?? 0) >= PROFILE_MIN_SCORE;
 const GAP_LABELS = { description: "Full job description", employer_posting: "Employer's own posting",
-  salary: "Pay", sentiment: "Employee sentiment", news: "Recent news", company_profile: "Company one-pager" };
+  salary: "Pay", sentiment: "Employee sentiment", news: "Recent news", company_profile: "Company one-pager",
+  apply_details: "How to apply" };
 const gapLabel = g => GAP_LABELS[g.what] || g.what;
 const resumeDoc = j => (j.documents || []).find(d => d.kind === "resume");
+const APPLIED = ["applied", "interviewing", "offer"];
+// Draft / final / sent, each with its own color and words, so the state reads at a glance.
+const DOC_STATUS = { draft: "✎ Draft · needs your review", final: "✓ Final · ready to send", sent: "➜ Sent with your application" };
+const docState = (d, j) => (d.status === "sent" || (j && APPLIED.includes(j.status))) ? "sent" : d.status === "final" ? "final" : "draft";
+const docBadge = (d, j) => { const s = docState(d, j); return `<span class="doc-badge ${s}">${DOC_STATUS[s]}</span>`; };
+const COVER = { required: ["bad", "Cover letter required"], optional: ["warn", "Cover letter optional"],
+  "not asked": ["good", "No cover letter asked"], "mentioned in posting": ["warn", "Cover letter mentioned in posting"],
+  unknown: ["none", "Cover letter: can't tell"] };
 const shortTitle = j => `${j.company} – ${j.title.trim()}`;
 
 async function setStatus(id, status) {
@@ -393,7 +402,7 @@ function payBlock(j) {
 
 function docLine(j) {
   const d = resumeDoc(j);
-  if (d) return `<div class="docline"><b>Resume draft ${d.status === "draft" ? "ready" : esc(d.status)}</b>
+  if (d) return `<div class="docline ${docState(d, j)}">${docBadge(d, j)}<b>Resume</b>
       <span class="muted">${esc(d.summary || "")}</span>
       <button class="btn" data-doc="${j.id}" data-tab="resume">View</button><button class="btn" data-doc="${j.id}" data-tab="notes">What changed</button>
       ${ask(`Revise my resume draft for ${shortTitle(j)}`)}</div>`;
@@ -402,6 +411,27 @@ function docLine(j) {
     return `<div class="docline queued">Resume draft queued${s ? ` · next drafts run ${soon(s.next)}` : ""}. Or now: ${ask(`Draft a resume for ${shortTitle(j)}`)}</div>`;
   }
   return "";
+}
+
+function applyLine(j) {
+  const a = j.apply_info;
+  if (CLOSED.includes(j.status) || APPLIED.includes(j.status)) return "";
+  if (!a) return ["interested", "applying"].includes(j.status)
+    ? `<div class="applyline pending"><b>Before you apply</b> <span class="muted">Not checked yet; the next review looks up the form and posting.</span>
+       ${ask(`Check how to apply for ${shortTitle(j)}`)}</div>` : "";
+  const [cls, label] = COVER[a.cover_letter] || COVER.unknown;
+  const prep = (a.prepare || []).map(x => `<li>${esc(x)}</li>`).join("");
+  const notes = (a.notes || []).map(n => `<li>${esc(n)}</li>`).join("");
+  return `<div class="applyline">
+      <b>Before you apply</b>
+      <span class="ap ${cls}">${label}</span>
+      ${a.notes?.length ? `<span class="ap warn">${a.notes.length} thing${a.notes.length > 1 ? "s" : ""} to know</span>` : ""}
+      <span class="muted small">${a.source === "form" ? `Read from the ${esc(a.platform || "")} application form` : "From the posting text (the form itself isn't readable)"} · ${esc(a.checked || "")}</span>
+      ${(prep || notes) ? `<details class="ap-more"><summary>What to have ready</summary>
+        ${notes ? `<p><b>Know first</b></p><ul class="ap-notes">${notes}</ul>` : ""}
+        ${prep ? `<p><b>Answers the form asks for</b></p><ul>${prep}</ul>` : ""}
+        ${a.url ? `<p>${linkOut(a.url, "Open the posting ↗", "src")}</p>` : ""}</details>` : ""}
+    </div>`;
 }
 
 function card(j) {
@@ -473,6 +503,7 @@ function card(j) {
         </div>
       </div>
     </details>
+    ${applyLine(j)}
     ${docLine(j)}
     <div class="foot">
       <div class="links">${srcs} ${j.status !== "new" ? `<span class="status-pill">${esc(j.status)}</span>` : ""}</div>
@@ -541,7 +572,7 @@ async function openResume(jobId, tab = "resume") {
       <div class="sheet-tabs">
         <button class="btn" data-t="resume">Resume</button><button class="btn" data-t="notes">What changed</button>
         <a class="btn" href="${docFile(d, "pdf")}" target="_blank" rel="noopener">PDF ↗</a>
-        ${d.status === "draft" ? `<button class="btn" data-final>Mark as final</button>` : `<span class="status-pill">${esc(d.status)}</span>`}
+        ${docBadge(d, j)}${docState(d, j) === "draft" ? `<button class="btn primary" data-final>Mark as final</button>` : ""}
       </div>
       <p class="small muted" style="margin:8px 0 0">To change it, tell Claude what you want: ${ask(`Revise my resume draft for ${shortTitle(j)}: `)}
         Files: <code>${esc(d.path)}/</code></p>
@@ -563,12 +594,17 @@ async function renderDocuments() {
   const s = schedule("drafts_schedule");
   const row = d => {
     const j = byJob(d.job_id);
-    return `<div class="doc"><div><div class="t">${esc(d.title)} · ${esc(d.company)}</div>
-      <div class="s">${d.status === "draft" ? "Draft, waiting for your review" : esc(d.status)} · updated ${when(d.updated)}${d.summary ? ` · ${esc(d.summary)}` : ""}</div></div>
+    return `<div class="doc ${docState(d, j)}"><div><div class="t">${docBadge(d, j)} ${esc(d.title)} · ${esc(d.company)}</div>
+      <div class="s">Updated ${when(d.updated)}${d.summary ? ` · ${esc(d.summary)}` : ""}</div></div>
       <div class="btns">${j ? `<button class="btn primary" data-doc="${j.id}" data-tab="resume">View</button><button class="btn" data-doc="${j.id}" data-tab="notes">What changed</button>` : ""}
       <a class="btn" href="/files/${esc(d.path)}/${STYLE}.pdf" target="_blank" rel="noopener">PDF</a></div></div>`;
   };
   const resumes = docs.documents.filter(d => d.kind === "resume");
+  const stateOf = d => { const j = byJob(d.job_id); return j && CLOSED.includes(j.status) ? "closed" : docState(d, j); };
+  const group = st => resumes.filter(d => stateOf(d) === st);
+  const [ready, review, sent, closed] = ["final", "draft", "sent", "closed"].map(group);
+  const panel = (title, list, note, empty) => `<div class="panel"><div class="panel-head"><h2>${title}</h2><span class="small muted">${list.length}${note ? ` · ${note}` : ""}</span></div>
+      ${list.length ? list.map(row).join("") : `<div class="body muted small">${empty}</div>`}</div>`;
   v.innerHTML = `
     ${managed("Claude manages your resumes.",
       `Mark a job <b>Interested</b> and Claude drafts a resume tailored to it${s ? ` (next run ${soon(s.next)})` : " (not scheduled yet: see Setup)"},
@@ -579,8 +615,11 @@ async function renderDocuments() {
       <div class="doc"><div><div class="t">profile/resume.json</div><div class="s">Every tailored draft starts here. Decisions about wording and framing live in resume-notes.md.</div></div>
       <div class="btns"><a class="btn primary" href="/files/${esc(docs.base.pdf || docs.base.html)}" target="_blank" rel="noopener">View</a>
         <a class="btn" href="#profile/profile/resume-notes.md">Resume notes</a><a class="btn" href="#profile/profile/resume.json">Edit content</a></div></div></div>
-    <div class="panel"><div class="panel-head"><h2>Tailored drafts</h2><span class="small muted">${resumes.length}</span></div>
-      ${resumes.length ? resumes.map(row).join("") : `<div class="body muted small">None yet.</div>`}</div>
+    ${panel("Waiting for your review", review, "drafts", "Nothing to review.")}
+    ${panel("Ready to send", ready, "marked final", "None marked final yet. Open a draft and click Mark as final when it's right.")}
+    ${(sent.length || closed.length) ? `<details class="panel archive"><summary class="panel-head"><h2>Archive</h2>
+      <span class="small muted">${sent.length} sent with applications${closed.length ? ` · ${closed.length} for jobs you dropped` : ""} · click to show</span></summary>
+      ${[...sent, ...closed].map(row).join("")}</details>` : ""}
     ${pending.length ? `<div class="panel"><div class="panel-head"><h2>Queued</h2><span class="small muted">${s ? `next run ${soon(s.next)}` : ""}</span></div>
       ${pending.map(j => `<div class="doc"><div><div class="t">${esc(j.title)} · ${esc(j.company)}</div>
         <div class="s">Marked ${esc(j.status)}${j.status_changed ? " " + when(j.status_changed) : ""}</div></div>

@@ -199,7 +199,16 @@ def main(argv=None) -> int:
         print(f"{n}: {args.out / (n + '.html')}" + (" + .pdf" if built["pdf"] else ""))
     if len(names) > 1:
         print(f"gallery: {args.out / 'index.html'}")
+    for w in rule_warnings(data, args.out):
+        print(f"RULE: {w}")
     return 0
+
+
+def rule_warnings(data: dict, out: Path) -> list[str]:
+    """The person's standing corrections (profile/resume-rules.json) and the page limit, via check.py."""
+    sys.path.insert(0, str(HERE))
+    import check
+    return check.check(data, out)
 
 
 def build(data: dict, out: Path, names: list[str], pdf: bool = True) -> dict:

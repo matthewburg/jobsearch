@@ -18,6 +18,7 @@ RESUMES = KIT / "resumes"
 sys.path.insert(0, str(KIT / "resume-builder"))
 sys.path.insert(0, str(KIT / "job-finder" / "guard"))
 import build as resume_build  # noqa: E402
+import check as resume_check  # noqa: E402
 from settings import load as load_settings  # noqa: E402
 
 
@@ -51,7 +52,12 @@ def render(store, job_id: int, folder: Path, summary: str = "") -> dict:
     built = resume_build.build(resume, folder, [st])
     rel = folder.relative_to(KIT).as_posix()
     store.save_document(job_id, "resume", rel, summary)
-    return {"path": rel, "html": f"{rel}/{st}.html", "pdf": f"{rel}/{st}.pdf" if built["pdf"] else None}
+    out = {"path": rel, "html": f"{rel}/{st}.html", "pdf": f"{rel}/{st}.pdf" if built["pdf"] else None}
+    # standing corrections from profile/resume-rules.json, plus the page limit: fix each, then save again
+    warnings = resume_check.check(resume, folder)
+    if warnings:
+        out["warnings"] = warnings
+    return out
 
 
 def read(store, job_id: int) -> dict | None:

@@ -27,7 +27,7 @@ The two halves don't need each other's timing: a review works with whatever has 
 **Save as you go: a review can end without warning** (usage limits, a timeout). Save each job as soon as it's scored, with `gaps` listing every piece of research not done yet (`description`, `employer_posting`, `salary`, `sentiment`, `news`, `company_profile`), each with a short `why` ("review ran short", "LinkedIn cap reached", "not on the careers site"). Remove a gap only once it's done. Never write "not checked" into a card field; a gap says it instead, and the report shows it as "Research in progress". The next review picks up whatever is left.
 
 1. Do section 1 (read the profile, `guard_status`, past dismiss reasons). Then `review_queue` and check `recent_runs`: did the collector run, and did it stop early (cap, cooldown, pushback)? Note it for the summary.
-2. **Finish what the person marked.** `jobs_incomplete` lists open jobs with gaps, marked jobs (interested and later) first. Fill every gap on the marked ones now, one-pager included (section 7). They asked to know more.
+2. **Finish what the person marked.** `jobs_incomplete` lists open jobs with gaps, marked jobs (interested and later) first. Fill every gap on the marked ones now, one-pager included (section 7). They asked to know more. An `apply_details` gap means `apply_check` hasn't run: call it (read-only) so the card shows whether a cover letter is asked for, the answers to have ready, and any instructions (time zone, assessment, portfolio). If the form can't be read (Ashby, Workday, LinkedIn) and you learn something by reading the posting or form page, pass it as `notes`.
 3. **Connector searches** (these can't run in the background): Indeed, ZipRecruiter, and Dice, 2–3 searches each from `search.md`, posted in the last few days. Call `seen_check` on each result list and treat the new ones like queue items.
 4. **Triage every item** (section 3 below). Each one ends up either:
    - `job_save` (merging into an existing job when `job_id` is set), or
@@ -182,7 +182,8 @@ When the person marks a job **Interested**, they get a tailored resume draft to 
 
 **Read first, every time:**
 - `../profile/resume.json`: the **base resume, the source of truth**. A draft is this, tailored; never a rewrite from scratch.
-- `../profile/resume-notes.md`: decisions already made about wording, framing, and what to leave out. They apply to every draft.
+- `../profile/resume-notes.md`: decisions already made about wording, framing, and what to leave out. **Start with its "Current rules" list.** They apply to every draft.
+- `../profile/resume-rules.json`: phrasings corrected once that must not come back. `resume_draft_save` checks the draft against them and the page limit. **If it returns `warnings`, fix every one and save again.**
 - `../profile/targets.md` (title framing, the never-mention list) and the experience bank (`roles/`, `bullet-bank.md`, `personal-projects.md`) for material that isn't on the base resume.
 - The job: posting, analysis (`why`, `concerns`, `resume` advice), and the company one-pager if there is one (`company_get`).
 
@@ -196,12 +197,13 @@ When the person marks a job **Interested**, they get a tailored resume draft to 
 **`notes` (markdown), what the person reads first:**
 - `## What I emphasized` and `## What I cut or downplayed`: a few bullets each, with why.
 - `## Gaps against the posting`: requirements the resume can't honestly cover, and how to handle each (cover letter, interview story, or skip).
+- `## How to apply`: from the job's `apply_info` (run `apply_check` first if it's missing). Say where to apply, whether a cover letter is required, optional, or not asked, the answers to prepare (salary expectations: suggest a figure inside the posted range that fits `targets.md`), and any caveat such as a time zone or an assessment. If a cover letter is **required**, say so in the push notification too.
 - `## Questions for you`: anything you'd need from them to make it stronger (a metric, whether they've done X).
 - `## Revision log`: dated entries, starting with "Drafted from the base resume."
 
 `summary`: one line for the card, e.g. "Leads with platform and admin tooling; AI policy work moved up."
 
-**Revisions happen in conversation.** When the person asks for a change ("lead with the AI work", "make it one page"), read the draft (`resume_draft_get`), change it, and save it again with `resume_draft_save`, adding a revision-log entry. If they want the change everywhere, also suggest updating the base resume or `resume-notes.md`, so future drafts start from it.
+**Revisions happen in conversation.** When the person asks for a change ("lead with the AI work", "make it one page"), read the draft (`resume_draft_get`), change it, and save it again with `resume_draft_save`, adding a revision-log entry. A correction to a fact or a phrasing applies everywhere: record it in `resume-notes.md` (dated entry plus the "Current rules" list), add a checked rule to `resume-rules.json` when it's a reusable phrase, fix the base resume, then run `python -I resume-builder/check.py` and fix every draft it flags. Tailoring choices for one job stay in that draft's notes.
 
 ## 9. Wrap up
 

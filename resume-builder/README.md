@@ -56,6 +56,7 @@ Before any tailoring, the person and Claude agree on the base resume once:
 Review happens over a few sessions, in plain language: "Rocket isn't its own product", "cut the soft skills", "the summary sounds stiff."
 - **Claude makes each correction and says whether it agrees, and why.** If a change would hurt the resume, it says so.
 - **Every correction goes into `profile/resume-notes.md`** as a decision, the reasoning, and how to apply it.
+- **Reusable phrasings go into `profile/resume-rules.json`** too. `check.py` tests every resume against them and the page limit. It runs on every build and in `resume_draft_save`, or on its own: `python -I resume-builder/check.py` checks the base and every draft.
 - **Claude reads that file before drafting or tailoring anything,** so the same understanding carries into every future resume and cover letter.
 
 ## What to expect from generated resumes
