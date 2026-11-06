@@ -12,7 +12,9 @@ Status: in daily use on a real search. What isn't done yet is in [Still to build
 2. **Researches and scores them** against your profile. Claude reads each posting, looks up the company, checks for ghost listings, and writes a report card: score, why it fits, concerns, pay versus your range, and resume advice.
 3. **Shows a local report** (http://127.0.0.1:8765) with sorting, filters, and a tracker (interested → applied → interviewing …). Dismissing a job asks for a reason, and the reasons tune later scoring.
 4. **Keeps a paper trail** of every status change, which you can use for unemployment work-search logs.
-5. *(In progress)* **Drafts tailored resumes and cover letters** from your experience bank, in your voice.
+5. **Drafts a tailored resume** for every job you mark Interested, from your experience bank, with notes on what changed, the gaps, and how to apply. You revise drafts by talking to Claude, and every correction is remembered and applied to all of them. *(Cover letters are next.)*
+
+You work with all of this by talking to Claude; see "How you work with the person" in [CLAUDE.md](CLAUDE.md).
 
 ## Hard rules (these stay, whoever runs it)
 
@@ -41,7 +43,7 @@ To share the kit, don't copy folders by hand. Run `package.py` (see [Sharing a c
 
 ## What you need
 
-- **Claude** desktop app (Code tab) or Claude Code, on a paid plan (connectors need one).
+- **Claude** desktop app (Code tab) or Claude Code, on a paid plan (connectors need one). Another AI agent can work if it supports local files and commands, custom MCP servers, and ideally scheduled runs and connectors. See [README.md](README.md#which-ai-it-needs) and [AGENTS.md](AGENTS.md).
 - **Python 3.11+.** Standard library only, so there's nothing to `pip install`. Tested on Python 3.14 / Windows 11.
 - **Accounts:** a free Indeed account, plus an optional free Crunchbase account. Nothing else. See [Connectors](#step-4-connect-the-job-sites).
 
@@ -207,6 +209,6 @@ It builds a copy of only the engine (and a zip), and scans every file for your h
 
 ## Still to build
 
-- [ ] **Resume DOCX output and tailoring command** (PDF styles are built), then cover letters.
+- [ ] **Cover letter drafts**, and DOCX resume output (HTML and PDF are built; tailored drafts are built).
 - [ ] **Job alert emails** as a source (needs a mail connector).
 - [ ] **A test with a second person's profile**, to catch assumptions that only fit one search.

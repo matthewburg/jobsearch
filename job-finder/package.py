@@ -1,7 +1,7 @@
 """Build a clean, shareable copy of the kit: the engine only, no personal data.
 
 Copies SETUP.md, templates/, resume-builder/, the job-finder code and docs, and
-the kit's own root files from kit/ (README.md, CLAUDE.md, .gitignore). Never
+the kit's own root files from kit/ (README.md, CLAUDE.md, AGENTS.md, LICENSE, .gitignore). Never
 copies profile/, samples/, job-finder/state/, or anything else. It builds in a
 temporary folder and scans every file for your home folder path and for the
 private_terms in profile/settings.json (whole words, any case). If anything
